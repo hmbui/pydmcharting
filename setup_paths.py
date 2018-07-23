@@ -6,8 +6,9 @@ logger = logging.getLogger(__name__)
 
 
 def setup_paths():
-    PYDM_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pydm")
-    sys.path.insert(1, PYDM_PATH)
-
-
-
+    try:
+        pydm_path = os.environ["PYDM_STRIPTOOL_PYDM_PATH"]
+    except KeyError as error:
+        logger.error("You must set up the appropriate environment variables. Missing env var: {0}".format(error))
+        return
+    sys.path.insert(1, pydm_path)
