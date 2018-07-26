@@ -11,7 +11,7 @@ from setup_paths import setup_paths
 setup_paths()
 
 from pydm.PyQt.QtGui import QApplication, QWidget, QLabel, QCheckBox, QBrush, QColor, QPalette, QHBoxLayout,\
-    QVBoxLayout, QSplitter, QComboBox, QLineEdit, QPushButton
+    QVBoxLayout, QSplitter, QComboBox, QLineEdit, QPushButton, QTabWidget
 from pydm.PyQt.QtCore import Qt, QObject, QEvent, pyqtSlot, QSize
 from displays.curve_settings_display import CurveSettingsDisplay
 from utilities.utils import random_color
@@ -22,10 +22,9 @@ class PyDMChartingDisplay(Display):
         super(PyDMChartingDisplay, self).__init__(parent=parent, args=args, macros=macros)
 
         self.channel_map = dict()
+        self.setWindowTitle("PyDM Charting Tool")
 
         self.main_layout = QVBoxLayout()
-        self.title = QLabel("Charting Tool")
-
         self.body_layout = QVBoxLayout()
 
         self.pv_layout = QHBoxLayout()
@@ -37,15 +36,22 @@ class PyDMChartingDisplay(Display):
         self.pv_connect_push_btn = QPushButton("Connect")
         self.pv_connect_push_btn.clicked.connect(self.add_curve)
 
+        self.tab_panel = QTabWidget()
+        self.curve_settings_tab = QWidget()
+        self.chart_settings_tab = QWidget()
+
         self.charting_layout = QHBoxLayout()
         self.chart = PyDMTimePlot()
+        self.chart.setPlotTitle("Time Plot")
         self.splitter = QSplitter()
 
         self.curve_settings_layout = QVBoxLayout()
+        self.curve_settings_layout.setAlignment(Qt.AlignTop)
         self.curve_settings_layout.setSpacing(5)
 
-        self.curve_panel_layout = QVBoxLayout()
-        self.curve_panel_layout.addLayout(self.curve_settings_layout)
+        self.chart_settings_layout = QVBoxLayout()
+        self.chart_settings_layout.setAlignment(Qt.AlignTop)
+        self.chart_settings_layout.setSpacing(5)
 
         self.curve_checkbox_panel = QWidget()
 
@@ -66,19 +72,22 @@ class PyDMChartingDisplay(Display):
     def setup_ui(self):
         self.setLayout(self.main_layout)
 
-        self.title.setAlignment(Qt.AlignCenter)
-        self.main_layout.addWidget(self.title)
-
         self.pv_layout.addWidget(self.pv_protocol_cmb)
         self.pv_layout.addWidget(self.pv_name_line_edt)
         self.pv_layout.addWidget(self.pv_connect_push_btn)
 
-        self.curve_panel_layout.setAlignment(Qt.AlignTop)
-        self.curve_checkbox_panel.setLayout(self.curve_panel_layout)
-        self.curve_checkbox_panel.setMinimumSize(0, 1000)
+        self.curve_settings_tab.layout = self.curve_settings_layout
+        self.curve_settings_tab.setLayout(self.curve_settings_tab.layout)
+
+        self.chart_settings_tab.layout = self.chart_settings_layout
+        self.chart_settings_tab.setLayout(self.chart_settings_tab.layout)
+
+        self.tab_panel.addTab(self.curve_settings_tab, "Curves")
+        self.tab_panel.addTab(self.chart_settings_tab, "Chart")
+        self.tab_panel.hide()
 
         self.splitter.addWidget(self.chart)
-        self.splitter.addWidget(self.curve_checkbox_panel)
+        self.splitter.addWidget(self.tab_panel)
         self.charting_layout.addWidget(self.splitter)
 
         self.body_layout.addLayout(self.pv_layout)
@@ -137,6 +146,7 @@ class PyDMChartingDisplay(Display):
 
         self.curve_settings_layout.addWidget(checkbox)
         self.curve_settings_layout.addLayout(curve_btn_layout)
+        self.tab_panel.show()
 
     @pyqtSlot()
     def handle_curve_chkbox_toggled(self, checkbox):
