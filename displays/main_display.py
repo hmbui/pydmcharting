@@ -1,3 +1,5 @@
+# The Main Display Window
+
 from functools import partial
 import json
 
@@ -19,6 +21,18 @@ from utilities.utils import random_color
 
 class PyDMChartingDisplay(Display):
     def __init__(self, parent=None, args=[], macros=None):
+        """
+        Create all the widgets, including any child dialogs.
+
+        Parameters
+        ----------
+        parent : QWidget
+            The parent widget of the charting display
+        args : list
+            The command parameters
+        macros : str
+            Macros to modify the UI parameters at runtime
+        """
         super(PyDMChartingDisplay, self).__init__(parent=parent, args=args, macros=macros)
 
         self.channel_map = dict()
@@ -58,18 +72,25 @@ class PyDMChartingDisplay(Display):
         self.app = QApplication.instance()
         self.setup_ui()
 
-        self.curve_settings_disp = CurveSettingsDisplay(self.chart)
+        self.curve_settings_disp = None
 
     def minimumSizeHint(self):
-        # This is the default recommended size
-        # for this screen
+        """
+        The minimum recommended size of the main window.
+        """
         return QSize(1024, 768)
 
     def ui_filepath(self):
+        """
+        The path to the UI file created by Qt Designer, if applicable.
+        """
         # No UI file is being used
         return None
 
     def setup_ui(self):
+        """
+        Initialize the widgets and layouts.
+        """
         self.setLayout(self.main_layout)
 
         self.pv_layout.addWidget(self.pv_protocol_cmb)
@@ -95,6 +116,20 @@ class PyDMChartingDisplay(Display):
         self.main_layout.addLayout(self.body_layout)
 
     def eventFilter(self, obj, event):
+        """
+        Handle key and mouse events for any applicable widget.
+
+        Parameters
+        ----------
+        obj : QWidget
+            The current widget that accepts the event
+        event : QEvent
+            The key or mouse event to handle
+
+        Returns
+        -------
+            True if the event was handled successfully; False otherwise
+        """
         if obj == self.pv_name_line_edt and event.type() == QEvent.KeyPress:
             if event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
                 self.add_curve()
@@ -106,20 +141,38 @@ class PyDMChartingDisplay(Display):
 
     @pyqtSlot()
     def add_curve(self):
+        """
+        Add a new curve to the chart.
+        """
         pv_name = self._get_full_pv_name(self.pv_name_line_edt.text())
         if pv_name in self.channel_map:
-                logger.error("'{0}' has already been plotted.".format(pv_name))
-                return
+            logger.error("'{0}' has already been plotted.".format(pv_name))
+            return
         elif pv_name:
             color = random_color()
             curve = self.chart.addYChannel(y_channel=pv_name, color=color, name=pv_name, lineStyle=Qt.SolidLine,
-                                           lineWidth=2, symbol=None)
+                                           lineWidth=2, symbol=None, symbolSize=None)
             self.channel_map[pv_name] = curve
             self.generate_pv_checkbox(pv_name, color)
 
             self.app.establish_widget_connections(self)
 
     def generate_pv_checkbox(self, pv_name, curve_color):
+        """
+        Generate a set of widgets to manage the appearance of a curve. The set of widgets includes:
+            1. A checkbox which shows the curve on the chart if checked, and hide the curve if not checked
+            2. Two buttons -- Modify... and Remove. Modify... will bring up the Curve Settings dialog. Remove will
+               delete the curve from the chart
+        This set of widgets will be hidden initially, until the first curve is plotted.
+
+        Parameters
+        ----------
+        pv_name: str
+            The name of the PV the current curve is being plotted for
+
+        curve_color : QColor
+            The color of the curve to paint for the checkbox label to help the user track the curve to the checkbox
+        """
         checkbox = QCheckBox()
         checkbox.setObjectName(pv_name)
 
@@ -135,10 +188,12 @@ class PyDMChartingDisplay(Display):
 
         modify_curve_btn = QPushButton("Modify...")
         modify_curve_btn.setObjectName(pv_name)
+        modify_curve_btn.setMaximumWidth(100)
         modify_curve_btn.clicked.connect(partial(self.display_curve_settings_dialog, pv_name))
 
         remove_curve_btn = QPushButton("Remove")
         remove_curve_btn.setObjectName(pv_name)
+        remove_curve_btn.setMaximumWidth(100)
         remove_curve_btn.clicked.connect(partial(self.remove_curve, pv_name))
 
         curve_btn_layout.addWidget(modify_curve_btn)
@@ -150,12 +205,26 @@ class PyDMChartingDisplay(Display):
 
     @pyqtSlot()
     def handle_curve_chkbox_toggled(self, checkbox):
+        """
+        Handle a checkbox's checked and unchecked events.
+
+        If a checkbox is checked, find the curve from the channel map. If found, re-draw the curve with its previous
+        appearance settings.
+
+        If a checkbox is unchecked, remove the curve from the chart, but keep the cached data in the channel map.
+
+        Parameters
+        ----------
+        checkbox : QCheckBox
+            The current checkbox being toggled
+        """
         pv_name = self._get_full_pv_name(checkbox.text())
         if checkbox.isChecked():
             curve = self.channel_map.get(pv_name, None)
             if curve:
                 self.chart.addYChannel(y_channel=curve.address, color=curve.color, name=curve.address,
-                                       lineStyle=curve.lineStyle, lineWidth=curve.lineWidth, symbol=curve.symbol)
+                                       lineStyle=curve.lineStyle, lineWidth=curve.lineWidth, symbol=curve.symbol,
+                                       symbolSize=curve.symbolSize)
             self.app.establish_widget_connections(self)
         else:
             curve = self.chart.findCurve(pv_name)
@@ -164,10 +233,29 @@ class PyDMChartingDisplay(Display):
 
     @pyqtSlot()
     def display_curve_settings_dialog(self, pv_name):
+        """
+        Bring up the Curve Settings dialog to modify the appearance of a curve.
+
+        Parameters
+        ----------
+        pv_name : str
+            The name of the PV the curve is being plotted for
+
+        """
+        self.curve_settings_disp = CurveSettingsDisplay(self, pv_name)
         self.curve_settings_disp.show()
 
     @pyqtSlot()
     def remove_curve(self, pv_name):
+        """
+        Remove a curve from the chart permanently. This will also clear the channel map cache from retaining the
+        removed curve's appearance settings.
+
+        Parameters
+        ----------
+        pv_name : str
+            The name of the PV the curve is being plotted for
+        """
         curve = self.chart.findCurve(pv_name)
         if curve:
             self.chart.removeYChannel(curve)
@@ -178,8 +266,14 @@ class PyDMChartingDisplay(Display):
                 w.deleteLater()
 
     def _get_full_pv_name(self, pv_name):
+        """
+        Append the protocol to the PV Name.
+
+        Parameters
+        ----------
+        pv_name : str
+            The name of the PV the curve is being plotted for
+        """
         if pv_name and "://" not in pv_name:
             pv_name = ''.join([self.pv_protocol_cmb.currentText(), pv_name])
         return pv_name
-
-
