@@ -3,7 +3,7 @@ setup_paths()
 
 from arg_parser import ArgParser
 from version import VERSION
-from display import PyDMChartingDisplay
+from displays.main_display import PyDMChartingDisplay
 from pydmcharting_logging import logging
 logger = logging.getLogger(__name__)
 
@@ -12,7 +12,6 @@ def main():
     _parse_arguments()
 
     pydm_chartsdipslay = PyDMChartingDisplay()
-    pydm_chartsdipslay.add_curve(channel="hai:A")
     pydm_chartsdipslay.show()
 
 
