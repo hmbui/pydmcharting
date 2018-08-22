@@ -14,9 +14,10 @@ setup_paths()
 
 from pydm.PyQt.QtGui import QApplication, QWidget, QLabel, QCheckBox, QBrush, QColor, QPalette, QHBoxLayout,\
     QVBoxLayout, QFormLayout, QLabel, QSplitter, QComboBox, QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, \
-    QColorDialog
+    QColorDialog, QSpacerItem, QSizePolicy
 from pydm.PyQt.QtCore import Qt, QObject, QEvent, pyqtSlot, QSize, QPropertyAnimation, QRect
 from displays.curve_settings_display import CurveSettingsDisplay
+from displays.chart_data_export_display import ChartDataExportDisplay
 from utilities.utils import random_color
 
 
@@ -49,6 +50,7 @@ class PyDMChartingDisplay(Display):
 
         self.pv_layout = QHBoxLayout()
         self.pv_name_line_edt = QLineEdit()
+        self.pv_name_line_edt.setAcceptDrops(True)
         self.pv_name_line_edt.installEventFilter(self)
         self.pv_protocol_cmb = QComboBox()
         self.pv_protocol_cmb.addItems(["ca://", "archive://"])
@@ -57,6 +59,7 @@ class PyDMChartingDisplay(Display):
         self.pv_connect_push_btn.clicked.connect(self.add_curve)
 
         self.tab_panel = QTabWidget()
+        self.tab_panel.setMaximumWidth(600)
         self.curve_settings_tab = QWidget()
         self.chart_settings_tab = QWidget()
 
@@ -82,7 +85,10 @@ class PyDMChartingDisplay(Display):
 
         self.auto_scale_btn = QPushButton("Auto Scale")
         self.reset_chart_btn = QPushButton("Reset View")
+
+        self.import_data_btn = QPushButton("Import Data...")
         self.export_data_btn = QPushButton("Export Data...")
+        self.export_data_btn.clicked.connect(self.handle_export_data_btn_clicked)
 
         self.chart_title_lbl = QLabel()
         self.chart_title_lbl.setText("Chart Title")
@@ -101,6 +107,11 @@ class PyDMChartingDisplay(Display):
         self.chart_max_redraw_rate_spin = QSpinBox()
         self.chart_max_redraw_rate_spin.setRange(0, 240)
         self.chart_max_redraw_rate_spin.setValue(DEFAULT_MAX_REDRAW_RATE)
+
+        self.show_legend_chk = QCheckBox()
+        self.show_legend_chk.setText("Show Legend")
+        self.show_legend_chk.setChecked(self.chart.showLegend)
+        self.show_legend_chk.clicked.connect(self.handle_show_legend_checkbox_clicked)
 
         self.background_color_lbl = QLabel("Graph Background Color ")
         self.background_color_btn = QPushButton()
@@ -136,11 +147,6 @@ class PyDMChartingDisplay(Display):
         self.grid_opacity_slr.setSingleStep(1)
         self.grid_opacity_slr.setTickPosition(QSlider.TicksBelow)
 
-        self.show_legend_chk = QCheckBox()
-        self.show_legend_chk.setText("Show Legend")
-        self.show_legend_chk.setChecked(self.chart.showLegend)
-        self.show_legend_chk.clicked.connect(self.handle_show_legend_checkbox_clicked)
-
         self.reset_chart_settings_btn = QPushButton("Reset Chart Settings")
         self.reset_chart_settings_btn.clicked.connect(self.handle_reset_chart_settings_btn_clicked)
 
@@ -150,12 +156,13 @@ class PyDMChartingDisplay(Display):
         self.setup_ui()
 
         self.curve_settings_disp = None
+        self.chart_data_export_disp = None
 
     def minimumSizeHint(self):
         """
         The minimum recommended size of the main window.
         """
-        return QSize(1024, 768)
+        return QSize(1200, 600)
 
     def ui_filepath(self):
         """
@@ -187,7 +194,10 @@ class PyDMChartingDisplay(Display):
 
         self.chart_control_layout.addWidget(self.auto_scale_btn)
         self.chart_control_layout.addWidget(self.reset_chart_btn)
+
+        self.chart_control_layout.addWidget(self.import_data_btn)
         self.chart_control_layout.addWidget(self.export_data_btn)
+        self.chart_control_layout.insertSpacing(2, 350)
 
         self.chart_layout.addWidget(self.chart)
         self.chart_layout.addLayout(self.chart_control_layout)
@@ -214,6 +224,8 @@ class PyDMChartingDisplay(Display):
         self.chart_settings_layout.addWidget(self.chart_max_redraw_rate_lbl)
         self.chart_settings_layout.addWidget(self.chart_max_redraw_rate_spin)
 
+        self.chart_settings_layout.addWidget(self.show_legend_chk)
+
         self.chart_settings_layout.addWidget(self.background_color_lbl)
         self.chart_settings_layout.addWidget(self.background_color_btn)
 
@@ -224,7 +236,6 @@ class PyDMChartingDisplay(Display):
         self.chart_settings_layout.addWidget(self.show_y_grid_chk)
         self.chart_settings_layout.addWidget(self.grid_opacity_lbl)
         self.chart_settings_layout.addWidget(self.grid_opacity_slr)
-        self.chart_settings_layout.addWidget(self.show_legend_chk)
         self.chart_settings_layout.addWidget(self.reset_chart_settings_btn)
 
     def eventFilter(self, obj, event):
@@ -329,17 +340,29 @@ class PyDMChartingDisplay(Display):
             The current checkbox being toggled
         """
         pv_name = self._get_full_pv_name(checkbox.text())
+
         if checkbox.isChecked():
             curve = self.channel_map.get(pv_name, None)
             if curve:
-                self.chart.addYChannel(y_channel=curve.address, color=curve.color, name=curve.address,
-                                       lineStyle=curve.lineStyle, lineWidth=curve.lineWidth, symbol=curve.symbol,
-                                       symbolSize=curve.symbolSize)
-            self.app.establish_widget_connections(self)
+                curve.show()
         else:
             curve = self.chart.findCurve(pv_name)
-            if curve:
-                self.chart.removeYChannel(curve)
+            curve.hide()
+
+        # if checkbox.isChecked():
+        #     curve = self.channel_map.get(pv_name, None)
+        #     if curve:
+        #         self.chart.addYChannel(y_channel=curve.address, color=curve.color, name=curve.address,
+        #                                lineStyle=curve.lineStyle, lineWidth=curve.lineWidth, symbol=curve.symbol,
+        #                                symbolSize=curve.symbolSize)
+        #         self.app.establish_widget_connections(self)
+        #         curve.show()
+        # else:
+        #     curve = self.chart.findCurve(pv_name)
+        #     if curve:
+        #         self.chart.removeYChannel(curve)
+        #         curve.hide()
+
 
     def display_curve_settings_dialog(self, pv_name):
         """
@@ -398,6 +421,10 @@ class PyDMChartingDisplay(Display):
 
     def handle_show_legend_checkbox_clicked(self, is_checked):
         self.chart.setShowLegend(is_checked)
+
+    def handle_export_data_btn_clicked(self):
+        self.char_data_export_disp = ChartDataExportDisplay(self)
+        self.char_data_export_disp.show()
 
     @pyqtSlot()
     def handle_reset_chart_settings_btn_clicked(self):
