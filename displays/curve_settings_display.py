@@ -3,8 +3,8 @@
 from pydm import Display
 from pydm.widgets.baseplot import BasePlotCurveItem
 
-from pydm.PyQt.QtCore import QSize, pyqtSlot
-from pydm.PyQt.QtGui import QFormLayout, QLabel, QComboBox, QSpinBox, QPushButton, QColorDialog
+from pydm.PyQt.QtCore import Qt, QSize, pyqtSlot
+from pydm.PyQt.QtGui import QDialog, QFormLayout, QLabel, QComboBox, QSpinBox, QPushButton, QColorDialog
 
 class CurveSettingsDisplay(Display):
     def __init__(self, main_display, pv_name, parent=None):
@@ -51,11 +51,10 @@ class CurveSettingsDisplay(Display):
         self.close_dialog_btn.clicked.connect(self.handle_close_button_clicked)
 
         self.setWindowTitle(self.pv_name.split("://")[1])
-        self.setup_ui()
+        self.setFixedSize(QSize(300, 200))
+        self.setWindowModality(True)
 
-    def minimumSizeHint(self):
-        # The minimum recommended size for this screen
-        return QSize(1024, 768)
+        self.setup_ui()
 
     def ui_filepath(self):
         """
