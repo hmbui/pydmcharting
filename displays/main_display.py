@@ -12,10 +12,9 @@ logger = logging.getLogger(__name__)
 from setup_paths import setup_paths
 setup_paths()
 
-from pydm.PyQt.QtGui import QApplication, QWidget, QLabel, QCheckBox, QBrush, QColor, QPalette, QHBoxLayout,\
-    QVBoxLayout, QFormLayout, QLabel, QSplitter, QComboBox, QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, \
-    QColorDialog, QSpacerItem, QSizePolicy
-from pydm.PyQt.QtCore import Qt, QObject, QEvent, pyqtSlot, QSize, QPropertyAnimation, QRect
+from pydm.PyQt.QtGui import QApplication, QWidget, QCheckBox, QColor, QPalette, QHBoxLayout, QVBoxLayout, QLabel, \
+    QSplitter, QComboBox, QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, QColorDialog
+from pydm.PyQt.QtCore import Qt, QEvent, pyqtSlot, QSize, QTimer
 from displays.curve_settings_display import CurveSettingsDisplay
 from displays.chart_data_export_display import ChartDataExportDisplay
 from utilities.utils import random_color
@@ -52,6 +51,7 @@ class PyDMChartingDisplay(Display):
         self.pv_name_line_edt = QLineEdit()
         self.pv_name_line_edt.setAcceptDrops(True)
         self.pv_name_line_edt.installEventFilter(self)
+
         self.pv_protocol_cmb = QComboBox()
         self.pv_protocol_cmb.addItems(["ca://", "archive://"])
 
@@ -180,6 +180,7 @@ class PyDMChartingDisplay(Display):
         self.pv_layout.addWidget(self.pv_protocol_cmb)
         self.pv_layout.addWidget(self.pv_name_line_edt)
         self.pv_layout.addWidget(self.pv_connect_push_btn)
+        QTimer.singleShot(0, self.pv_name_line_edt.setFocus)
 
         self.curve_settings_tab.layout = self.curve_settings_layout
         self.curve_settings_tab.setLayout(self.curve_settings_tab.layout)
@@ -344,24 +345,13 @@ class PyDMChartingDisplay(Display):
         if checkbox.isChecked():
             curve = self.channel_map.get(pv_name, None)
             if curve:
+                self.chart.addLegendItem(curve, pv_name, self.show_legend_chk.isChecked())
                 curve.show()
         else:
             curve = self.chart.findCurve(pv_name)
-            curve.hide()
-
-        # if checkbox.isChecked():
-        #     curve = self.channel_map.get(pv_name, None)
-        #     if curve:
-        #         self.chart.addYChannel(y_channel=curve.address, color=curve.color, name=curve.address,
-        #                                lineStyle=curve.lineStyle, lineWidth=curve.lineWidth, symbol=curve.symbol,
-        #                                symbolSize=curve.symbolSize)
-        #         self.app.establish_widget_connections(self)
-        #         curve.show()
-        # else:
-        #     curve = self.chart.findCurve(pv_name)
-        #     if curve:
-        #         self.chart.removeYChannel(curve)
-        #         curve.hide()
+            if curve:
+                curve.hide()
+                self.chart.removeLegendItem(pv_name)
 
 
     def display_curve_settings_dialog(self, pv_name):
@@ -391,6 +381,7 @@ class PyDMChartingDisplay(Display):
         if curve:
             self.chart.removeYChannel(curve)
             del self.channel_map[pv_name]
+            self.chart.removeLegendItem(pv_name)
 
             widgets = self.findChildren((QCheckBox, QPushButton), pv_name)
             for w in widgets:
