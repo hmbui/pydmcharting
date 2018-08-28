@@ -1,10 +1,10 @@
 # The Dialog to Export Data from a Chart
 
-from pydm import Display
-from pydm.widgets.baseplot import BasePlotCurveItem
-
-from pydm.PyQt.QtCore import QSize, pyqtSlot
+from pydm.PyQt.QtCore import Qt
 from pydm.PyQt.QtGui import QVBoxLayout, QCheckBox, QFileDialog, QLayout, QFormLayout, QLabel, QComboBox, QSpinBox, QPushButton, QColorDialog
+
+from pydm import Display
+
 
 class ChartDataExportDisplay(Display):
     def __init__(self, main_display, parent=None):
@@ -36,6 +36,7 @@ class ChartDataExportDisplay(Display):
         self.save_file_btn.clicked.connect(self.handle_save_file_btn_clicked)
 
         self.setWindowTitle("Export Chart Settings")
+        self.setWindowModality(Qt.ApplicationModal)
         self.setup_ui()
         self.layout().setSizeConstraint(QLayout.SetFixedSize)
 

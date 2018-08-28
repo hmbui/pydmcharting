@@ -16,6 +16,7 @@ from pydm.PyQt.QtGui import QApplication, QWidget, QCheckBox, QColor, QPalette, 
     QSplitter, QComboBox, QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, QColorDialog
 from pydm.PyQt.QtCore import Qt, QEvent, pyqtSlot, QSize, QTimer
 from displays.curve_settings_display import CurveSettingsDisplay
+from displays.axis_settings_display import AxisSettingsDisplay
 from displays.chart_data_export_display import ChartDataExportDisplay
 from utilities.utils import random_color
 
@@ -75,6 +76,7 @@ class PyDMChartingDisplay(Display):
         self.charting_layout = QHBoxLayout()
         self.chart = PyDMTimePlot()
         self.chart.setPlotTitle("Time Plot")
+
         self.splitter = QSplitter()
 
         self.curve_settings_layout = QVBoxLayout()
@@ -99,35 +101,33 @@ class PyDMChartingDisplay(Display):
         self.export_data_btn = QPushButton("Export Data...")
         self.export_data_btn.clicked.connect(self.handle_export_data_btn_clicked)
 
-        self.chart_title_lbl = QLabel()
-        self.chart_title_lbl.setText("Chart Title")
+        self.chart_title_lbl = QLabel(text="Chart Title")
         self.chart_title_line_edt = QLineEdit()
         self.chart_title_line_edt.setText(self.chart.getPlotTitle())
         self.chart_title_line_edt.textChanged.connect(self.handle_title_text_changed)
 
-        self.chart_ring_buffer_size_lbl = QLabel()
-        self.chart_ring_buffer_size_lbl.setText("Ring Buffer Size")
+        self.chart_change_axis_settings_btn = QPushButton(text="Change Axis Settings...")
+        self.chart_change_axis_settings_btn.clicked.connect(self.handle_change_axis_settings_clicked)
+
+        self.chart_ring_buffer_size_lbl = QLabel(text="Ring Buffer Size")
         self.chart_ring_buffer_size_edt = QLineEdit()
         self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
         self.chart_ring_buffer_size_edt.textChanged.connect(self.handle_buffer_size_changed)
 
-        self.chart_redraw_rate_lbl = QLabel()
-        self.chart_redraw_rate_lbl.setText("Redraw Rate (Hz)")
+        self.chart_redraw_rate_lbl = QLabel(text="Redraw Rate (Hz)")
         self.chart_redraw_rate_spin = QSpinBox()
         self.chart_redraw_rate_spin.setRange(MIN_REDRAW_RATE_HZ, MAX_REDRAW_RATE_HZ)
         self.chart_redraw_rate_spin.setValue(DEFAULT_REDRAW_RATE_HZ)
         self.chart_redraw_rate_spin.valueChanged.connect(self.handle_redraw_rate_changed)
 
-        self.chart_data_sampling_rate_lbl = QLabel()
-        self.chart_data_sampling_rate_lbl.setText("Data Sampling Rate (Hz)")
+        self.chart_data_sampling_rate_lbl = QLabel(text="Data Sampling Rate (Hz)")
         self.chart_data_sampling_rate_spin = QSpinBox()
         self.chart_data_sampling_rate_spin.setRange(MIN_DATA_SAMPLING_RATE_HZ,
                                                     MAX_DATA_SAMPLING_RATE_HZ)
         self.chart_data_sampling_rate_spin.setValue(DEFAULT_DATA_SAMPLING_RATE_HZ)
         self.chart_data_sampling_rate_spin.valueChanged.connect(self.handle_data_sampling_rate_changed)
 
-        self.show_legend_chk = QCheckBox()
-        self.show_legend_chk.setText("Show Legend")
+        self.show_legend_chk = QCheckBox(text="Show Legend")
         self.show_legend_chk.setChecked(self.chart.showLegend)
         self.show_legend_chk.clicked.connect(self.handle_show_legend_checkbox_clicked)
 
@@ -145,18 +145,15 @@ class PyDMChartingDisplay(Display):
         self.axis_color_btn.setMaximumWidth(20)
         self.axis_color_btn.clicked.connect(self.handle_axis_color_button_clicked)
 
-        self.show_x_grid_chk = QCheckBox()
-        self.show_x_grid_chk.setText("Show x Grid")
+        self.show_x_grid_chk = QCheckBox("Show x Grid")
         self.show_x_grid_chk.setChecked(self.chart.showXGrid)
         self.show_x_grid_chk.clicked.connect(self.handle_show_x_grid_checkbox_clicked)
 
-        self.show_y_grid_chk = QCheckBox()
-        self.show_y_grid_chk.setText("Show y Grid")
+        self.show_y_grid_chk = QCheckBox("Show y Grid")
         self.show_y_grid_chk.setChecked(self.chart.showYGrid)
         self.show_y_grid_chk.clicked.connect(self.handle_show_y_grid_checkbox_clicked)
 
-        self.grid_opacity_lbl = QLabel()
-        self.grid_opacity_lbl.setText("Grid Opacity")
+        self.grid_opacity_lbl = QLabel(text="Grid Opacity")
         self.grid_opacity_slr = QSlider(Qt.Horizontal)
         self.grid_opacity_slr.setFocusPolicy(Qt.StrongFocus)
         self.grid_opacity_slr.setRange(0, 10)
@@ -175,6 +172,7 @@ class PyDMChartingDisplay(Display):
         self.setup_ui()
 
         self.curve_settings_disp = None
+        self.axis_settings_disp = None
         self.chart_data_export_disp = None
         self._grid_alpha = 5
 
@@ -238,6 +236,7 @@ class PyDMChartingDisplay(Display):
     def setup_chart_settings_layout(self):
         self.chart_settings_layout.addWidget(self.chart_title_lbl)
         self.chart_settings_layout.addWidget(self.chart_title_line_edt)
+        self.chart_settings_layout.addWidget(self.chart_change_axis_settings_btn)
 
         self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_lbl)
         self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_edt)
@@ -412,6 +411,10 @@ class PyDMChartingDisplay(Display):
 
     def handle_title_text_changed(self, new_text):
         self.chart.setPlotTitle(new_text)
+
+    def handle_change_axis_settings_clicked(self):
+        self.axis_settings_disp = AxisSettingsDisplay(self)
+        self.axis_settings_disp.show()
 
     def handle_buffer_size_changed(self, new_buffer_size):
         if new_buffer_size and int(new_buffer_size) > MINIMUM_BUFER_SIZE:

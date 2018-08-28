@@ -3,8 +3,9 @@
 from pydm import Display
 from pydm.widgets.baseplot import BasePlotCurveItem
 
-from pydm.PyQt.QtCore import QSize
+from pydm.PyQt.QtCore import QSize, Qt
 from pydm.PyQt.QtGui import QFormLayout, QLabel, QComboBox, QSpinBox, QPushButton, QColorDialog, QPalette
+
 
 class CurveSettingsDisplay(Display):
     def __init__(self, main_display, pv_name, parent=None):
@@ -53,7 +54,7 @@ class CurveSettingsDisplay(Display):
 
         self.setWindowTitle(self.pv_name.split("://")[1])
         self.setFixedSize(QSize(300, 200))
-        self.setWindowModality(True)
+        self.setWindowModality(Qt.ApplicationModal)
 
         self.setup_ui()
 
