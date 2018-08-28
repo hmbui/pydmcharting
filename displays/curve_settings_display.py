@@ -3,8 +3,9 @@
 from pydm import Display
 from pydm.widgets.baseplot import BasePlotCurveItem
 
-from pydm.PyQt.QtCore import Qt, QSize, pyqtSlot
-from pydm.PyQt.QtGui import QDialog, QFormLayout, QLabel, QComboBox, QSpinBox, QPushButton, QColorDialog
+from pydm.PyQt.QtCore import QSize, Qt
+from pydm.PyQt.QtGui import QFormLayout, QLabel, QComboBox, QSpinBox, QPushButton, QColorDialog, QPalette
+
 
 class CurveSettingsDisplay(Display):
     def __init__(self, main_display, pv_name, parent=None):
@@ -29,6 +30,7 @@ class CurveSettingsDisplay(Display):
         self.channel_map = self.main_display.channel_map
         self.app = self.main_display.app
 
+        self.curve_original_color = None
         self.curve_color_lbl = QLabel("Curve Color ")
         self.curve_color_btn = QPushButton()
         self.curve_color_btn.setMaximumWidth(20)
@@ -52,7 +54,7 @@ class CurveSettingsDisplay(Display):
 
         self.setWindowTitle(self.pv_name.split("://")[1])
         self.setFixedSize(QSize(300, 200))
-        self.setWindowModality(True)
+        self.setWindowModality(Qt.ApplicationModal)
 
         self.setup_ui()
 
@@ -134,6 +136,7 @@ class CurveSettingsDisplay(Display):
         selected_color = QColorDialog.getColor()
         curve = self.chart.findCurve(self.pv_name)
         if curve:
+            self.curve_original_color = curve.color
             curve.color = selected_color
             self.curve_color_btn.setStyleSheet("background-color: " + curve.color.name())
 
@@ -217,11 +220,18 @@ class CurveSettingsDisplay(Display):
         """
         curve = self.chart.findCurve(self.pv_name)
         if curve:
+            if self.curve_original_color:
+                curve.color = self.curve_original_color
+                self.curve_color_btn.setStyleSheet("background-color: " + curve.color.name())
+
             self.symbol_cmb.setCurrentIndex(0)
             self.symbol_size_spin.setValue(10)
 
             self.line_style_cmb.setCurrentIndex(1)
             self.line_width_spin.setValue(1)
+
+    def closeEvent(self, event):
+        self.handle_close_button_clicked()
 
     def handle_close_button_clicked(self):
         """
@@ -229,5 +239,17 @@ class CurveSettingsDisplay(Display):
         """
         self.close()
 
+        # Update the widget checkbox text to the current curve color
+        curve = self.chart.findCurve(self.pv_name)
+        if curve:
+            layout = self.main_display.curve_settings_layout
+            widget_count = layout.count()
+            for i in range(widget_count):
+                w = layout.itemAt(i).widget()
+                if w and w.objectName() == self.pv_name:
+                    palette = w.palette()
+                    palette.setColor(QPalette.Active, QPalette.WindowText, curve.color)
+                    w.setPalette(palette)
+                    w.setText(self.pv_name.split("://")[1])
 
 

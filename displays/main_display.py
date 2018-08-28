@@ -12,17 +12,26 @@ logger = logging.getLogger(__name__)
 from setup_paths import setup_paths
 setup_paths()
 
-from pydm.PyQt.QtGui import QApplication, QWidget, QLabel, QCheckBox, QBrush, QColor, QPalette, QHBoxLayout,\
-    QVBoxLayout, QFormLayout, QLabel, QSplitter, QComboBox, QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, \
-    QColorDialog, QSpacerItem, QSizePolicy
-from pydm.PyQt.QtCore import Qt, QObject, QEvent, pyqtSlot, QSize, QPropertyAnimation, QRect
+from pydm.PyQt.QtGui import QApplication, QWidget, QCheckBox, QColor, QPalette, QHBoxLayout, QVBoxLayout, QLabel, \
+    QSplitter, QComboBox, QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, QColorDialog
+from pydm.PyQt.QtCore import Qt, QEvent, pyqtSlot, QSize, QTimer
 from displays.curve_settings_display import CurveSettingsDisplay
+from displays.axis_settings_display import AxisSettingsDisplay
 from displays.chart_data_export_display import ChartDataExportDisplay
 from utilities.utils import random_color
 
-
 MINIMUM_BUFER_SIZE = 1200
-DEFAULT_MAX_REDRAW_RATE = 30
+MAXIMUM_BUFER_SIZE = 65536
+DEFAULT_BUFFER_SIZE = 7200
+
+MIN_REDRAW_RATE_HZ = 1
+MAX_REDRAW_RATE_HZ = 1000000000
+DEFAULT_REDRAW_RATE_HZ = 30
+
+MIN_DATA_SAMPLING_RATE_HZ = 1
+MAX_DATA_SAMPLING_RATE_HZ = 1000000000
+DEFAULT_DATA_SAMPLING_RATE_HZ = 10
+
 DEFAULT_CHART_BACKGROUND_COLOR = QColor("black")
 DEFAULT_CHART_AXIS_COLOR = QColor("white")
 
@@ -52,6 +61,7 @@ class PyDMChartingDisplay(Display):
         self.pv_name_line_edt = QLineEdit()
         self.pv_name_line_edt.setAcceptDrops(True)
         self.pv_name_line_edt.installEventFilter(self)
+
         self.pv_protocol_cmb = QComboBox()
         self.pv_protocol_cmb.addItems(["ca://", "archive://"])
 
@@ -66,6 +76,7 @@ class PyDMChartingDisplay(Display):
         self.charting_layout = QHBoxLayout()
         self.chart = PyDMTimePlot()
         self.chart.setPlotTitle("Time Plot")
+
         self.splitter = QSplitter()
 
         self.curve_settings_layout = QVBoxLayout()
@@ -74,7 +85,7 @@ class PyDMChartingDisplay(Display):
 
         self.chart_settings_layout = QVBoxLayout()
         self.chart_settings_layout.setAlignment(Qt.AlignTop)
-        self.chart_settings_layout.setSpacing(15)
+        self.chart_settings_layout.setSpacing(10)
 
         self.chart_layout = QVBoxLayout()
         self.chart_panel = QWidget()
@@ -90,26 +101,33 @@ class PyDMChartingDisplay(Display):
         self.export_data_btn = QPushButton("Export Data...")
         self.export_data_btn.clicked.connect(self.handle_export_data_btn_clicked)
 
-        self.chart_title_lbl = QLabel()
-        self.chart_title_lbl.setText("Chart Title")
+        self.chart_title_lbl = QLabel(text="Chart Title")
         self.chart_title_line_edt = QLineEdit()
         self.chart_title_line_edt.setText(self.chart.getPlotTitle())
         self.chart_title_line_edt.textChanged.connect(self.handle_title_text_changed)
 
-        self.chart_ring_buffer_size_lbl = QLabel()
-        self.chart_ring_buffer_size_lbl.setText("Ring Buffer Size")
+        self.chart_change_axis_settings_btn = QPushButton(text="Change Axis Settings...")
+        self.chart_change_axis_settings_btn.clicked.connect(self.handle_change_axis_settings_clicked)
+
+        self.chart_ring_buffer_size_lbl = QLabel(text="Ring Buffer Size")
         self.chart_ring_buffer_size_edt = QLineEdit()
-        self.chart_ring_buffer_size_edt.setText(str(MINIMUM_BUFER_SIZE))
+        self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
         self.chart_ring_buffer_size_edt.textChanged.connect(self.handle_buffer_size_changed)
 
-        self.chart_max_redraw_rate_lbl = QLabel()
-        self.chart_max_redraw_rate_lbl.setText("Redraw Rate")
-        self.chart_max_redraw_rate_spin = QSpinBox()
-        self.chart_max_redraw_rate_spin.setRange(0, 240)
-        self.chart_max_redraw_rate_spin.setValue(DEFAULT_MAX_REDRAW_RATE)
+        self.chart_redraw_rate_lbl = QLabel(text="Redraw Rate (Hz)")
+        self.chart_redraw_rate_spin = QSpinBox()
+        self.chart_redraw_rate_spin.setRange(MIN_REDRAW_RATE_HZ, MAX_REDRAW_RATE_HZ)
+        self.chart_redraw_rate_spin.setValue(DEFAULT_REDRAW_RATE_HZ)
+        self.chart_redraw_rate_spin.valueChanged.connect(self.handle_redraw_rate_changed)
 
-        self.show_legend_chk = QCheckBox()
-        self.show_legend_chk.setText("Show Legend")
+        self.chart_data_sampling_rate_lbl = QLabel(text="Data Sampling Rate (Hz)")
+        self.chart_data_sampling_rate_spin = QSpinBox()
+        self.chart_data_sampling_rate_spin.setRange(MIN_DATA_SAMPLING_RATE_HZ,
+                                                    MAX_DATA_SAMPLING_RATE_HZ)
+        self.chart_data_sampling_rate_spin.setValue(DEFAULT_DATA_SAMPLING_RATE_HZ)
+        self.chart_data_sampling_rate_spin.valueChanged.connect(self.handle_data_sampling_rate_changed)
+
+        self.show_legend_chk = QCheckBox(text="Show Legend")
         self.show_legend_chk.setChecked(self.chart.showLegend)
         self.show_legend_chk.clicked.connect(self.handle_show_legend_checkbox_clicked)
 
@@ -127,25 +145,23 @@ class PyDMChartingDisplay(Display):
         self.axis_color_btn.setMaximumWidth(20)
         self.axis_color_btn.clicked.connect(self.handle_axis_color_button_clicked)
 
-        self.show_x_grid_chk = QCheckBox()
-        self.show_x_grid_chk.setText("Show x Grid")
+        self.show_x_grid_chk = QCheckBox("Show x Grid")
         self.show_x_grid_chk.setChecked(self.chart.showXGrid)
         self.show_x_grid_chk.clicked.connect(self.handle_show_x_grid_checkbox_clicked)
 
-        self.show_y_grid_chk = QCheckBox()
-        self.show_y_grid_chk.setText("Show y Grid")
+        self.show_y_grid_chk = QCheckBox("Show y Grid")
         self.show_y_grid_chk.setChecked(self.chart.showYGrid)
         self.show_y_grid_chk.clicked.connect(self.handle_show_y_grid_checkbox_clicked)
 
-        self.grid_opacity_lbl = QLabel()
-        self.grid_opacity_lbl.setText("Grid Opacity")
+        self.grid_opacity_lbl = QLabel(text="Grid Opacity")
         self.grid_opacity_slr = QSlider(Qt.Horizontal)
         self.grid_opacity_slr.setFocusPolicy(Qt.StrongFocus)
-        self.grid_opacity_slr.setRange(1, 10)
+        self.grid_opacity_slr.setRange(0, 10)
         self.grid_opacity_slr.setValue(5)
         self.grid_opacity_slr.setTickInterval(1)
         self.grid_opacity_slr.setSingleStep(1)
         self.grid_opacity_slr.setTickPosition(QSlider.TicksBelow)
+        self.grid_opacity_slr.valueChanged.connect(self.handle_grid_opacity_slider_mouse_release)
 
         self.reset_chart_settings_btn = QPushButton("Reset Chart Settings")
         self.reset_chart_settings_btn.clicked.connect(self.handle_reset_chart_settings_btn_clicked)
@@ -156,7 +172,9 @@ class PyDMChartingDisplay(Display):
         self.setup_ui()
 
         self.curve_settings_disp = None
+        self.axis_settings_disp = None
         self.chart_data_export_disp = None
+        self._grid_alpha = 5
 
     def minimumSizeHint(self):
         """
@@ -180,6 +198,7 @@ class PyDMChartingDisplay(Display):
         self.pv_layout.addWidget(self.pv_protocol_cmb)
         self.pv_layout.addWidget(self.pv_name_line_edt)
         self.pv_layout.addWidget(self.pv_connect_push_btn)
+        QTimer.singleShot(0, self.pv_name_line_edt.setFocus)
 
         self.curve_settings_tab.layout = self.curve_settings_layout
         self.curve_settings_tab.setLayout(self.curve_settings_tab.layout)
@@ -217,12 +236,16 @@ class PyDMChartingDisplay(Display):
     def setup_chart_settings_layout(self):
         self.chart_settings_layout.addWidget(self.chart_title_lbl)
         self.chart_settings_layout.addWidget(self.chart_title_line_edt)
+        self.chart_settings_layout.addWidget(self.chart_change_axis_settings_btn)
 
         self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_lbl)
         self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_edt)
 
-        self.chart_settings_layout.addWidget(self.chart_max_redraw_rate_lbl)
-        self.chart_settings_layout.addWidget(self.chart_max_redraw_rate_spin)
+        self.chart_settings_layout.addWidget(self.chart_redraw_rate_lbl)
+        self.chart_settings_layout.addWidget(self.chart_redraw_rate_spin)
+
+        self.chart_settings_layout.addWidget(self.chart_data_sampling_rate_lbl)
+        self.chart_settings_layout.addWidget(self.chart_data_sampling_rate_spin)
 
         self.chart_settings_layout.addWidget(self.show_legend_chk)
 
@@ -344,24 +367,13 @@ class PyDMChartingDisplay(Display):
         if checkbox.isChecked():
             curve = self.channel_map.get(pv_name, None)
             if curve:
+                self.chart.addLegendItem(curve, pv_name, self.show_legend_chk.isChecked())
                 curve.show()
         else:
             curve = self.chart.findCurve(pv_name)
-            curve.hide()
-
-        # if checkbox.isChecked():
-        #     curve = self.channel_map.get(pv_name, None)
-        #     if curve:
-        #         self.chart.addYChannel(y_channel=curve.address, color=curve.color, name=curve.address,
-        #                                lineStyle=curve.lineStyle, lineWidth=curve.lineWidth, symbol=curve.symbol,
-        #                                symbolSize=curve.symbolSize)
-        #         self.app.establish_widget_connections(self)
-        #         curve.show()
-        # else:
-        #     curve = self.chart.findCurve(pv_name)
-        #     if curve:
-        #         self.chart.removeYChannel(curve)
-        #         curve.hide()
+            if curve:
+                curve.hide()
+                self.chart.removeLegendItem(pv_name)
 
 
     def display_curve_settings_dialog(self, pv_name):
@@ -391,6 +403,7 @@ class PyDMChartingDisplay(Display):
         if curve:
             self.chart.removeYChannel(curve)
             del self.channel_map[pv_name]
+            self.chart.removeLegendItem(pv_name)
 
             widgets = self.findChildren((QCheckBox, QPushButton), pv_name)
             for w in widgets:
@@ -399,9 +412,21 @@ class PyDMChartingDisplay(Display):
     def handle_title_text_changed(self, new_text):
         self.chart.setPlotTitle(new_text)
 
+    def handle_change_axis_settings_clicked(self):
+        self.axis_settings_disp = AxisSettingsDisplay(self)
+        self.axis_settings_disp.show()
+
     def handle_buffer_size_changed(self, new_buffer_size):
         if new_buffer_size and int(new_buffer_size) > MINIMUM_BUFER_SIZE:
             self.chart.setBufferSize(new_buffer_size)
+
+    def handle_redraw_rate_changed(self, new_redraw_rate):
+        self.chart.maxRedrawRate = new_redraw_rate
+
+    def handle_data_sampling_rate_changed(self, new_data_sampling_rate):
+        # The chart expects the value in milliseconds
+        sampling_rate_ms = 1 / new_data_sampling_rate * 1000
+        self.chart.setUpdateInterval(sampling_rate_ms)
 
     def handle_background_color_button_clicked(self):
         selected_color = QColorDialog.getColor()
@@ -413,29 +438,37 @@ class PyDMChartingDisplay(Display):
         self.chart.setAxisColor(selected_color)
         self.axis_color_btn.setStyleSheet("background-color: " + selected_color.name())
 
+    def handle_grid_opacity_slider_mouse_release(self):
+        self._grid_alpha = float(self.grid_opacity_slr.value()) / 10.0
+        self.chart.setShowXGrid(self.show_x_grid_chk.isChecked(), self._grid_alpha)
+        self.chart.setShowYGrid(self.show_y_grid_chk.isChecked(), self._grid_alpha)
+
     def handle_show_x_grid_checkbox_clicked(self, is_checked):
-        self.chart.setShowXGrid(is_checked)
+        self.chart.setShowXGrid(is_checked, self._grid_alpha)
 
     def handle_show_y_grid_checkbox_clicked(self, is_checked):
-        self.chart.setShowYGrid(is_checked)
+        self.chart.setShowYGrid(is_checked, self._grid_alpha)
 
     def handle_show_legend_checkbox_clicked(self, is_checked):
         self.chart.setShowLegend(is_checked)
 
     def handle_export_data_btn_clicked(self):
-        self.char_data_export_disp = ChartDataExportDisplay(self)
-        self.char_data_export_disp.show()
+        self.chart_data_export_disp = ChartDataExportDisplay(self)
+        self.chart_data_export_disp.show()
 
     @pyqtSlot()
     def handle_reset_chart_settings_btn_clicked(self):
-        self.chart_ring_buffer_size_edt.setText(str(MINIMUM_BUFER_SIZE))
-        self.chart_max_redraw_rate_spin.setValue(DEFAULT_MAX_REDRAW_RATE)
+        self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
+        self.chart_redraw_rate_spin.setValue(DEFAULT_REDRAW_RATE_HZ)
+        self.chart_data_sampling_rate_spin.setValue(DEFAULT_DATA_SAMPLING_RATE_HZ)
 
         self.chart.setBackgroundColor(DEFAULT_CHART_BACKGROUND_COLOR)
         self.background_color_btn.setStyleSheet("background-color: " + DEFAULT_CHART_BACKGROUND_COLOR.name())
 
         self.chart.setAxisColor(DEFAULT_CHART_AXIS_COLOR)
         self.axis_color_btn.setStyleSheet("background-color: " + DEFAULT_CHART_AXIS_COLOR.name())
+
+        self.grid_opacity_slr.setValue(5)
 
         self.show_x_grid_chk.setChecked(False)
         self.show_y_grid_chk.setChecked(False)
