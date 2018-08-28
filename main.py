@@ -1,11 +1,17 @@
 from setup_paths import setup_paths
 setup_paths()
 
+import os
 from arg_parser import ArgParser
 from version import VERSION
-from displays.main_display import PyDMChartingDisplay
+import traceback
+
 from pydmcharting_logging import logging
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+from displays.main_display import PyDMChartingDisplay
 
 
 def main():

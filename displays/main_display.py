@@ -21,15 +21,15 @@ from displays.chart_data_export_display import ChartDataExportDisplay
 from utilities.utils import random_color
 
 MINIMUM_BUFER_SIZE = 1200
-MAXIMUM_BUFER_SIZE = 65536
+MAXIMUM_BUFER_SIZE = 65535
 DEFAULT_BUFFER_SIZE = 7200
 
 MIN_REDRAW_RATE_HZ = 1
-MAX_REDRAW_RATE_HZ = 10000000000
+MAX_REDRAW_RATE_HZ = 240
 DEFAULT_REDRAW_RATE_HZ = 30
 
 MIN_DATA_SAMPLING_RATE_HZ = 1
-MAX_DATA_SAMPLING_RATE_HZ = 10000000000
+MAX_DATA_SAMPLING_RATE_HZ = 360
 DEFAULT_DATA_SAMPLING_RATE_HZ = 10
 
 DEFAULT_CHART_BACKGROUND_COLOR = QColor("black")
@@ -95,7 +95,7 @@ class PyDMChartingDisplay(Display):
         self.chart_control_layout.setSpacing(5)
 
         self.auto_scale_btn = QPushButton("Auto Scale")
-        self.reset_chart_btn = QPushButton("Reset View")
+        self.auto_scale_btn.clicked.connect(self.handle_auto_scale_btn_clicked)
 
         self.import_data_btn = QPushButton("Import Data...")
         self.export_data_btn = QPushButton("Export Data...")
@@ -121,11 +121,13 @@ class PyDMChartingDisplay(Display):
         self.chart_redraw_rate_spin.valueChanged.connect(self.handle_redraw_rate_changed)
 
         self.chart_sync_mode_grpbx = QGroupBox("Synchronization Mode")
-        self.chart_update_synchronous_radio = QRadioButton("Synchronous")
-        self.chart_update_synchronous_radio.setChecked(True)
-        self.chart_update_asynchronous_radio = QRadioButton("Asynchronous")
+        self.chart_sync_mode_sync_radio = QRadioButton("Synchronous")
+        self.chart_sync_mode_sync_radio.setChecked(True)
+
+        self.char_sync_mode_async_radio = QRadioButton("Asynchronous")
+
         self.chart_sync_mode_layout = QVBoxLayout()
-        self.chart_sync_mode_layout.setSpacing(15)
+        self.chart_sync_mode_layout.setSpacing(5)
 
         self.chart_data_sampling_rate_lbl = QLabel(text="Data Asynchronous Sampling Rate (Hz)")
         self.chart_data_async_sampling_rate_spin = QSpinBox()
@@ -219,12 +221,10 @@ class PyDMChartingDisplay(Display):
         self.tab_panel.addTab(self.chart_settings_tab, "Chart")
         self.tab_panel.hide()
 
-        #self.chart_control_layout.addWidget(self.auto_scale_btn)
-        #self.chart_control_layout.addWidget(self.reset_chart_btn)
-
+        self.chart_control_layout.addWidget(self.auto_scale_btn)
         #self.chart_control_layout.addWidget(self.import_data_btn)
         self.chart_control_layout.addWidget(self.export_data_btn)
-        self.chart_control_layout.insertSpacing(2, 350)
+        self.chart_control_layout.insertSpacing(1, 350)
 
         self.chart_layout.addWidget(self.chart)
         self.chart_layout.addLayout(self.chart_control_layout)
@@ -252,13 +252,17 @@ class PyDMChartingDisplay(Display):
         self.chart_settings_layout.addWidget(self.chart_redraw_rate_lbl)
         self.chart_settings_layout.addWidget(self.chart_redraw_rate_spin)
 
-        self.chart_settings_layout.addWidget(self.chart_data_sampling_rate_lbl)
+        self.chart_sync_mode_sync_radio.toggled.connect(partial(self.handle_sync_mode_radio_toggle,
+                                                                self.chart_sync_mode_sync_radio))
+        self.char_sync_mode_async_radio.toggled.connect(partial(self.handle_sync_mode_radio_toggle,
+                                                                self.char_sync_mode_async_radio))
 
-        self.chart_sync_mode_layout.addWidget(self.chart_update_synchronous_radio)
-        self.chart_sync_mode_layout.addWidget(self.chart_update_asynchronous_radio)
+        self.chart_sync_mode_layout.addWidget(self.chart_sync_mode_sync_radio)
+        self.chart_sync_mode_layout.addWidget(self.char_sync_mode_async_radio)
         self.chart_sync_mode_grpbx.setLayout(self.chart_sync_mode_layout)
-
         self.chart_settings_layout.addWidget(self.chart_sync_mode_grpbx)
+
+        self.chart_settings_layout.addWidget(self.chart_data_sampling_rate_lbl)
         self.chart_settings_layout.addWidget(self.chart_data_async_sampling_rate_spin)
 
         self.chart_settings_layout.addWidget(self.show_legend_chk)
@@ -439,8 +443,8 @@ class PyDMChartingDisplay(Display):
 
     def handle_data_sampling_rate_changed(self, new_data_sampling_rate):
         # The chart expects the value in milliseconds
-        sampling_rate_ms = 1 / new_data_sampling_rate * 1000
-        self.chart.setUpdateInterval(sampling_rate_ms)
+        sampling_rate_seconds = 1 / new_data_sampling_rate
+        self.chart.setUpdateInterval(sampling_rate_seconds)
 
     def handle_background_color_button_clicked(self):
         selected_color = QColorDialog.getColor()
@@ -470,11 +474,37 @@ class PyDMChartingDisplay(Display):
         self.chart_data_export_disp = ChartDataExportDisplay(self)
         self.chart_data_export_disp.show()
 
+    def handle_sync_mode_radio_toggle(self, radio_btn):
+        if radio_btn.isChecked():
+            if radio_btn.text() == "Synchronous":
+                self.chart_data_sampling_rate_lbl.hide()
+                self.chart_data_async_sampling_rate_spin.hide()
+
+                self.chart.setUpdatesAsynchronously(False)
+            elif radio_btn.text() == "Asynchronous":
+                self.chart_data_sampling_rate_lbl.show()
+                self.chart_data_async_sampling_rate_spin.show()
+
+                self.chart.setUpdatesAsynchronously(True)
+        self.app.establish_widget_connections(self)
+
+    def handle_auto_scale_btn_clicked(self):
+        self.chart.resetAutoRangeX()
+        self.chart.resetAutoRangeY()
+
     @pyqtSlot()
     def handle_reset_chart_settings_btn_clicked(self):
         self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
         self.chart_redraw_rate_spin.setValue(DEFAULT_REDRAW_RATE_HZ)
         self.chart_data_async_sampling_rate_spin.setValue(DEFAULT_DATA_SAMPLING_RATE_HZ)
+        self.chart_data_sampling_rate_lbl.hide()
+        self.chart_data_async_sampling_rate_spin.hide()
+        self.chart_sync_mode_sync_radio.setChecked(True)
+
+        self.chart.resetUpdatesAsynchronously()
+        self.chart.resetTimeSpan()
+        self.chart.resetUpdateInterval()
+        self.chart.resetBufferSize()
 
         self.chart.setBackgroundColor(DEFAULT_CHART_BACKGROUND_COLOR)
         self.background_color_btn.setStyleSheet("background-color: " + DEFAULT_CHART_BACKGROUND_COLOR.name())

@@ -1,10 +1,23 @@
+
+import os
 import logging
 
-logging.basicConfig(level=logging.INFO, filename="logs/pydmcharting.log",
-                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+log_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 
-# Override the basic configs for cleaner console output
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-console_handler.setFormatter(logging.Formatter("%(message)s"))
-logger = logging.getLogger('').addHandler(console_handler)
+log_dir_path = os.path.dirname(os.path.realpath(__file__))
+log_dir_path += "/logs"
+
+try:
+    os.makedirs(log_dir_path)
+except os.error as err:
+    # It's OK if the log directory exists. This is to be compatible with Python 2.7
+    if err.errno != os.errno.EEXIST:
+        raise err
+
+from logging.handlers import RotatingFileHandler
+rotating_log_handler = RotatingFileHandler(os.path.join(log_dir_path, "pydmcharting.log"), maxBytes=2000000,
+                                           backupCount=100)
+rotating_log_handler.setFormatter(log_formatter)
+logger.addHandler(rotating_log_handler)

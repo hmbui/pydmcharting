@@ -42,13 +42,10 @@ class AxisSettingsDisplay(Display):
         self.display_right_y_axis_chk.clicked.connect(self.handle_right_y_axis_checkbox_changed)
         self.display_right_y_axis_chk.setChecked(self.chart.showRightAxis)
 
-        self.right_y_axis_lbl = QLabel(text="Right y-axis Label")
-        self.right_y_axis_label_line_edt = QLineEdit()
-        self.right_y_axis_label_line_edt.textChanged.connect(partial(self.handle_axis_label_change, "right"))
-
-        self.right_y_axis_unit_lbl = QLabel(text="Right y-axis Unit")
-        self.right_y_axis_unit_edt = QLineEdit()
-        self.right_y_axis_unit_edt.textChanged.connect(partial(self.handle_axis_label_change, "right", is_unit=True))
+        self.right_y_axis_lbl = None
+        self.right_y_axis_unit_edt = None
+        self.right_y_axis_unit_lbl = None
+        self.right_y_axis_unit_edt = None
 
         self.close_dialog_btn = QPushButton("Close")
         self.close_dialog_btn.clicked.connect(self.handle_close_button_clicked)
@@ -96,6 +93,15 @@ class AxisSettingsDisplay(Display):
             right_unit = self.chart.units["right"]
             if not right_unit:
                 right_unit = self.y_axis_unit_edt.text()
+
+            self.right_y_axis_lbl = QLabel(text="Right y-axis Label")
+            self.right_y_axis_label_line_edt = QLineEdit()
+            self.right_y_axis_label_line_edt.textChanged.connect(partial(self.handle_axis_label_change, "right"))
+
+            self.right_y_axis_unit_lbl = QLabel(text="Right y-axis Unit")
+            self.right_y_axis_unit_edt = QLineEdit()
+            self.right_y_axis_unit_edt.textChanged.connect(
+                partial(self.handle_axis_label_change, "right", is_unit=True))
 
             self.right_y_axis_label_line_edt.setText(right_label)
             self.right_y_axis_unit_edt.setText(right_unit)
