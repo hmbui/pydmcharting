@@ -109,27 +109,34 @@ class PyDMChartingDisplay(Display):
         self.chart_change_axis_settings_btn = QPushButton(text="Change Axis Settings...")
         self.chart_change_axis_settings_btn.clicked.connect(self.handle_change_axis_settings_clicked)
 
-        self.chart_ring_buffer_size_lbl = QLabel(text="Ring Buffer Size")
+        self.chart_limit_time_span_chk = QCheckBox("Limit Time Span")
+        self.chart_limit_time_span_lbl = QLabel("Hours : Minutes : Seconds")
+        self.chart_limit_time_span_hours_line_edt = QLineEdit()
+        self.chart_limit_time_span_minutes_line_edt = QLineEdit()
+        self.chart_limit_time_span_seconds_line_edt = QLineEdit()
+        self.chart_limit_time_span_layout = QHBoxLayout()
+        self.chart_limit_time_span_layout.setSpacing(5)
+
+        self.chart_ring_buffer_size_lbl = QLabel("Ring Buffer Size")
         self.chart_ring_buffer_size_edt = QLineEdit()
         self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
         self.chart_ring_buffer_size_edt.textChanged.connect(self.handle_buffer_size_changed)
 
-        self.chart_redraw_rate_lbl = QLabel(text="Redraw Rate (Hz)")
+        self.chart_redraw_rate_lbl = QLabel("Redraw Rate (Hz)")
         self.chart_redraw_rate_spin = QSpinBox()
         self.chart_redraw_rate_spin.setRange(MIN_REDRAW_RATE_HZ, MAX_REDRAW_RATE_HZ)
         self.chart_redraw_rate_spin.setValue(DEFAULT_REDRAW_RATE_HZ)
         self.chart_redraw_rate_spin.valueChanged.connect(self.handle_redraw_rate_changed)
 
-        self.chart_sync_mode_grpbx = QGroupBox("Synchronization Mode")
+        self.chart_sync_mode_grpbx = QGroupBox("Data Sampling Mode")
         self.chart_sync_mode_sync_radio = QRadioButton("Synchronous")
-        self.chart_sync_mode_sync_radio.setChecked(True)
-
-        self.char_sync_mode_async_radio = QRadioButton("Asynchronous")
+        self.chart_sync_mode_async_radio = QRadioButton("Asynchronous")
+        self.chart_sync_mode_async_radio.setChecked(True)
 
         self.chart_sync_mode_layout = QVBoxLayout()
         self.chart_sync_mode_layout.setSpacing(5)
 
-        self.chart_data_sampling_rate_lbl = QLabel(text="Data Asynchronous Sampling Rate (Hz)")
+        self.chart_data_sampling_rate_lbl = QLabel("Asynchronous Data Sampling Rate (Hz)")
         self.chart_data_async_sampling_rate_spin = QSpinBox()
         self.chart_data_async_sampling_rate_spin.setRange(MIN_DATA_SAMPLING_RATE_HZ, MAX_DATA_SAMPLING_RATE_HZ)
         self.chart_data_async_sampling_rate_spin.setValue(DEFAULT_DATA_SAMPLING_RATE_HZ)
@@ -137,7 +144,7 @@ class PyDMChartingDisplay(Display):
         self.chart_data_sampling_rate_lbl.hide()
         self.chart_data_async_sampling_rate_spin.hide()
 
-        self.show_legend_chk = QCheckBox(text="Show Legend")
+        self.show_legend_chk = QCheckBox("Show Legend")
         self.show_legend_chk.setChecked(self.chart.showLegend)
         self.show_legend_chk.clicked.connect(self.handle_show_legend_checkbox_clicked)
 
@@ -163,7 +170,7 @@ class PyDMChartingDisplay(Display):
         self.show_y_grid_chk.setChecked(self.chart.showYGrid)
         self.show_y_grid_chk.clicked.connect(self.handle_show_y_grid_checkbox_clicked)
 
-        self.grid_opacity_lbl = QLabel(text="Grid Opacity")
+        self.grid_opacity_lbl = QLabel("Grid Opacity")
         self.grid_opacity_slr = QSlider(Qt.Horizontal)
         self.grid_opacity_slr.setFocusPolicy(Qt.StrongFocus)
         self.grid_opacity_slr.setRange(0, 10)
@@ -246,6 +253,20 @@ class PyDMChartingDisplay(Display):
         self.chart_settings_layout.addWidget(self.chart_title_line_edt)
         self.chart_settings_layout.addWidget(self.chart_change_axis_settings_btn)
 
+        self.chart_limit_time_span_layout.addWidget(self.chart_limit_time_span_lbl)
+        self.chart_limit_time_span_layout.addWidget(self.chart_limit_time_span_hours_line_edt)
+        self.chart_limit_time_span_layout.addWidget(self.chart_limit_time_span_minutes_line_edt)
+        self.chart_limit_time_span_layout.addWidget(self.chart_limit_time_span_seconds_line_edt)
+
+        self.chart_limit_time_span_lbl.hide()
+        self.chart_limit_time_span_hours_line_edt.hide()
+        self.chart_limit_time_span_minutes_line_edt.hide()
+        self.chart_limit_time_span_seconds_line_edt.hide()
+
+        self.chart_limit_time_span_chk.clicked.connect(self.handle_limit_time_span_checkbox_clicked)
+        self.chart_settings_layout.addWidget(self.chart_limit_time_span_chk)
+        self.chart_settings_layout.addLayout(self.chart_limit_time_span_layout)
+
         self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_lbl)
         self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_edt)
 
@@ -254,11 +275,11 @@ class PyDMChartingDisplay(Display):
 
         self.chart_sync_mode_sync_radio.toggled.connect(partial(self.handle_sync_mode_radio_toggle,
                                                                 self.chart_sync_mode_sync_radio))
-        self.char_sync_mode_async_radio.toggled.connect(partial(self.handle_sync_mode_radio_toggle,
-                                                                self.char_sync_mode_async_radio))
+        self.chart_sync_mode_async_radio.toggled.connect(partial(self.handle_sync_mode_radio_toggle,
+                                                                 self.chart_sync_mode_async_radio))
 
         self.chart_sync_mode_layout.addWidget(self.chart_sync_mode_sync_radio)
-        self.chart_sync_mode_layout.addWidget(self.char_sync_mode_async_radio)
+        self.chart_sync_mode_layout.addWidget(self.chart_sync_mode_async_radio)
         self.chart_sync_mode_grpbx.setLayout(self.chart_sync_mode_layout)
         self.chart_settings_layout.addWidget(self.chart_sync_mode_grpbx)
 
@@ -278,6 +299,8 @@ class PyDMChartingDisplay(Display):
         self.chart_settings_layout.addWidget(self.grid_opacity_lbl)
         self.chart_settings_layout.addWidget(self.grid_opacity_slr)
         self.chart_settings_layout.addWidget(self.reset_chart_settings_btn)
+
+        self.chart_sync_mode_async_radio.toggled.emit(True)
 
     def eventFilter(self, obj, event):
         """
@@ -434,6 +457,12 @@ class PyDMChartingDisplay(Display):
         self.axis_settings_disp = AxisSettingsDisplay(self)
         self.axis_settings_disp.show()
 
+    def handle_limit_time_span_checkbox_clicked(self, is_checked):
+        self.chart_limit_time_span_lbl.setVisible(is_checked)
+        self.chart_limit_time_span_hours_line_edt.setVisible(is_checked)
+        self.chart_limit_time_span_minutes_line_edt.setVisible(is_checked)
+        self.chart_limit_time_span_seconds_line_edt.setVisible(is_checked)
+
     def handle_buffer_size_changed(self, new_buffer_size):
         if new_buffer_size and int(new_buffer_size) > MINIMUM_BUFER_SIZE:
             self.chart.setBufferSize(new_buffer_size)
@@ -499,7 +528,12 @@ class PyDMChartingDisplay(Display):
         self.chart_data_async_sampling_rate_spin.setValue(DEFAULT_DATA_SAMPLING_RATE_HZ)
         self.chart_data_sampling_rate_lbl.hide()
         self.chart_data_async_sampling_rate_spin.hide()
-        self.chart_sync_mode_sync_radio.setChecked(True)
+
+        self.chart_sync_mode_async_radio.setChecked(True)
+        self.chart_sync_mode_async_radio.toggled.emit(True)
+
+        self.chart_limit_time_span_chk.setChecked(False)
+        self.chart_limit_time_span_chk.emit(False)
 
         self.chart.resetUpdatesAsynchronously()
         self.chart.resetTimeSpan()
