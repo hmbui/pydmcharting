@@ -13,12 +13,13 @@ from setup_paths import setup_paths
 setup_paths()
 
 from pydm.PyQt.QtGui import QApplication, QWidget, QCheckBox, QColor, QPalette, QHBoxLayout, QVBoxLayout, QLabel, \
-    QSplitter, QComboBox, QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, QColorDialog, QGroupBox, QRadioButton
+    QSplitter, QComboBox, QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, QColorDialog, QGroupBox, \
+    QRadioButton, QMessageBox
 from pydm.PyQt.QtCore import Qt, QEvent, pyqtSlot, QSize, QTimer
 from displays.curve_settings_display import CurveSettingsDisplay
 from displays.axis_settings_display import AxisSettingsDisplay
 from displays.chart_data_export_display import ChartDataExportDisplay
-from utilities.utils import random_color
+from utilities.utils import random_color, display_message_box
 
 MINIMUM_BUFER_SIZE = 1200
 MAXIMUM_BUFER_SIZE = 65535
@@ -34,6 +35,7 @@ DEFAULT_DATA_SAMPLING_RATE_HZ = 10
 
 DEFAULT_CHART_BACKGROUND_COLOR = QColor("black")
 DEFAULT_CHART_AXIS_COLOR = QColor("white")
+
 
 class PyDMChartingDisplay(Display):
     def __init__(self, parent=None, args=[], macros=None):
@@ -74,7 +76,7 @@ class PyDMChartingDisplay(Display):
         self.chart_settings_tab = QWidget()
 
         self.charting_layout = QHBoxLayout()
-        self.chart = PyDMTimePlot()
+        self.chart = PyDMTimePlot(plot_by_timestamps=True)
         self.chart.setPlotTitle("Time Plot")
 
         self.splitter = QSplitter()
@@ -96,6 +98,12 @@ class PyDMChartingDisplay(Display):
 
         self.auto_scale_btn = QPushButton("Auto Scale")
         self.auto_scale_btn.clicked.connect(self.handle_auto_scale_btn_clicked)
+        self.auto_scale_btn.setEnabled(False)
+
+        self.resume_chart_text = "Resume"
+        self.pause_chart_text = "Pause"
+        self.pause_chart_btn = QPushButton(self.pause_chart_text)
+        self.pause_chart_btn.clicked.connect(self.handle_pause_chart_btn_clicked)
 
         self.import_data_btn = QPushButton("Import Data...")
         self.export_data_btn = QPushButton("Export Data...")
@@ -109,11 +117,18 @@ class PyDMChartingDisplay(Display):
         self.chart_change_axis_settings_btn = QPushButton(text="Change Axis Settings...")
         self.chart_change_axis_settings_btn.clicked.connect(self.handle_change_axis_settings_clicked)
 
-        self.chart_limit_time_span_chk = QCheckBox("Limit Time Span")
+        self.limit_time_plan_text = "Limit Time Span"
+        self.chart_limit_time_span_chk = QCheckBox(self.limit_time_plan_text)
         self.chart_limit_time_span_lbl = QLabel("Hours : Minutes : Seconds")
         self.chart_limit_time_span_hours_line_edt = QLineEdit()
         self.chart_limit_time_span_minutes_line_edt = QLineEdit()
         self.chart_limit_time_span_seconds_line_edt = QLineEdit()
+        self.chart_limit_time_span_activate_btn = QPushButton("Apply")
+        self.chart_limit_time_span_activate_btn.setDisabled(True)
+        self.time_span_remaining_timer = QTimer(self)
+        self.time_span_remaining_timer.setInterval(1000)
+        self.time_span_remaining_timer.timeout.connect(self.handle_time_span_remaining_timer_timeout)
+
         self.chart_limit_time_span_layout = QHBoxLayout()
         self.chart_limit_time_span_layout.setSpacing(5)
 
@@ -192,6 +207,9 @@ class PyDMChartingDisplay(Display):
         self.axis_settings_disp = None
         self.chart_data_export_disp = None
         self._grid_alpha = 5
+        self.time_span_limit_hours = None
+        self.time_span_limit_minutes = None
+        self.time_span_limit_seconds = None
 
     def minimumSizeHint(self):
         """
@@ -229,9 +247,10 @@ class PyDMChartingDisplay(Display):
         self.tab_panel.hide()
 
         self.chart_control_layout.addWidget(self.auto_scale_btn)
+        self.chart_control_layout.addWidget(self.pause_chart_btn)
         #self.chart_control_layout.addWidget(self.import_data_btn)
         self.chart_control_layout.addWidget(self.export_data_btn)
-        self.chart_control_layout.insertSpacing(1, 350)
+        self.chart_control_layout.insertSpacing(2, 350)
 
         self.chart_layout.addWidget(self.chart)
         self.chart_layout.addLayout(self.chart_control_layout)
@@ -248,6 +267,8 @@ class PyDMChartingDisplay(Display):
         self.body_layout.addLayout(self.chart_control_layout)
         self.main_layout.addLayout(self.body_layout)
 
+        self.enable_chart_control_buttons(False)
+
     def setup_chart_settings_layout(self):
         self.chart_settings_layout.addWidget(self.chart_title_lbl)
         self.chart_settings_layout.addWidget(self.chart_title_line_edt)
@@ -255,15 +276,24 @@ class PyDMChartingDisplay(Display):
 
         self.chart_limit_time_span_layout.addWidget(self.chart_limit_time_span_lbl)
         self.chart_limit_time_span_layout.addWidget(self.chart_limit_time_span_hours_line_edt)
+
         self.chart_limit_time_span_layout.addWidget(self.chart_limit_time_span_minutes_line_edt)
         self.chart_limit_time_span_layout.addWidget(self.chart_limit_time_span_seconds_line_edt)
+        self.chart_limit_time_span_layout.addWidget(self.chart_limit_time_span_activate_btn)
 
         self.chart_limit_time_span_lbl.hide()
         self.chart_limit_time_span_hours_line_edt.hide()
         self.chart_limit_time_span_minutes_line_edt.hide()
         self.chart_limit_time_span_seconds_line_edt.hide()
+        self.chart_limit_time_span_activate_btn.hide()
+
+        self.chart_limit_time_span_hours_line_edt.textChanged.connect(self.handle_time_span_edt_text_changed)
+        self.chart_limit_time_span_minutes_line_edt.textChanged.connect(self.handle_time_span_edt_text_changed)
+        self.chart_limit_time_span_seconds_line_edt.textChanged.connect(self.handle_time_span_edt_text_changed)
 
         self.chart_limit_time_span_chk.clicked.connect(self.handle_limit_time_span_checkbox_clicked)
+        self.chart_limit_time_span_activate_btn.clicked.connect(self.handle_chart_limit_time_span_activate_btn_clicked)
+        self.chart_limit_time_span_activate_btn.installEventFilter(self)
         self.chart_settings_layout.addWidget(self.chart_limit_time_span_chk)
         self.chart_settings_layout.addLayout(self.chart_limit_time_span_layout)
 
@@ -323,6 +353,12 @@ class PyDMChartingDisplay(Display):
                 return True
             else:
                 return super(PyDMChartingDisplay, self).eventFilter(obj, event)
+        elif obj == self.chart_limit_time_span_activate_btn and event.type() == QEvent.KeyPress:
+            if event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
+                self.handle_chart_limit_time_span_activate_btn_clicked()
+                return True
+            else:
+                return super(PyDMChartingDisplay, self).eventFilter(obj, event)
         else:
             return super(PyDMChartingDisplay, self).eventFilter(obj, event)
 
@@ -340,6 +376,8 @@ class PyDMChartingDisplay(Display):
                                            lineWidth=2, symbol=None, symbolSize=None)
             self.channel_map[pv_name] = curve
             self.generate_pv_checkbox(pv_name, color)
+
+            self.enable_chart_control_buttons()
 
             self.app.establish_widget_connections(self)
 
@@ -416,7 +454,6 @@ class PyDMChartingDisplay(Display):
                 curve.hide()
                 self.chart.removeLegendItem(pv_name)
 
-
     def display_curve_settings_dialog(self, pv_name):
         """
         Bring up the Curve Settings dialog to modify the appearance of a curve.
@@ -450,6 +487,9 @@ class PyDMChartingDisplay(Display):
             for w in widgets:
                 w.deleteLater()
 
+        if len(self.chart.getCurves()) < 1:
+            self.enable_chart_control_buttons(False)
+
     def handle_title_text_changed(self, new_text):
         self.chart.setPlotTitle(new_text)
 
@@ -462,6 +502,41 @@ class PyDMChartingDisplay(Display):
         self.chart_limit_time_span_hours_line_edt.setVisible(is_checked)
         self.chart_limit_time_span_minutes_line_edt.setVisible(is_checked)
         self.chart_limit_time_span_seconds_line_edt.setVisible(is_checked)
+        self.chart_limit_time_span_activate_btn.setVisible(is_checked)
+
+        if not is_checked:
+            self.chart_limit_time_span_chk.setText(self.limit_time_plan_text)
+            self.chart.setContinuationTimer(-1)
+
+    def handle_time_span_edt_text_changed(self):
+        try:
+            self.time_span_limit_hours = int(self.chart_limit_time_span_hours_line_edt.text())
+            self.time_span_limit_minutes = int(self.chart_limit_time_span_minutes_line_edt.text())
+            self.time_span_limit_seconds = int(self.chart_limit_time_span_seconds_line_edt.text())
+        except ValueError as e:
+            self.time_span_limit_hours = None
+            self.time_span_limit_minutes = None
+            self.time_span_limit_seconds = None
+
+        if self.time_span_limit_hours is not None and self.time_span_limit_minutes is not None and \
+                self.time_span_limit_seconds is not None:
+            self.chart_limit_time_span_activate_btn.setEnabled(True)
+        else:
+            self.chart_limit_time_span_activate_btn.setEnabled(False)
+
+    def handle_chart_limit_time_span_activate_btn_clicked(self):
+        if self.time_span_limit_hours is None or self.time_span_limit_minutes is None or \
+                self.time_span_limit_seconds is None:
+            display_message_box(QMessageBox.Critical, "Invalid Values",
+                                "Hours, minutes, and seconds expect only integer values.")
+        else:
+            self.chart_limit_time_span_chk.setText(
+                self.limit_time_plan_text + " (" + str( self.time_span_limit_hours) + " hours : " +
+                str(self.time_span_limit_minutes) + " minutes : " + str(self.time_span_limit_seconds) + " seconds)")
+            timeout_milliseconds = (self.time_span_limit_hours * 3600 + self.time_span_limit_minutes * 60 +
+                                    self.time_span_limit_seconds) * 1000
+            self.chart.setContinuationTimer(timeout_milliseconds)
+            self.time_span_remaining_timer.start()
 
     def handle_buffer_size_changed(self, new_buffer_size):
         if new_buffer_size and int(new_buffer_size) > MINIMUM_BUFER_SIZE:
@@ -521,6 +596,13 @@ class PyDMChartingDisplay(Display):
         self.chart.resetAutoRangeX()
         self.chart.resetAutoRangeY()
 
+    def handle_pause_chart_btn_clicked(self):
+        remaining_time = self.chart.pausePlotting()
+        if remaining_time < 0:
+            self.pause_chart_btn.setText(self.pause_chart_text)
+        else:
+            self.pause_chart_btn.setText(self.resume_chart_text)
+
     @pyqtSlot()
     def handle_reset_chart_settings_btn_clicked(self):
         self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
@@ -533,9 +615,10 @@ class PyDMChartingDisplay(Display):
         self.chart_sync_mode_async_radio.toggled.emit(True)
 
         self.chart_limit_time_span_chk.setChecked(False)
-        self.chart_limit_time_span_chk.emit(False)
+        self.chart_limit_time_span_chk.setText(self.limit_time_plan_text)
+        self.chart_limit_time_span_chk.clicked.emit(False)
 
-        self.chart.resetUpdatesAsynchronously()
+        self.chart.setUpdatesAsynchronously(True)
         self.chart.resetTimeSpan()
         self.chart.resetUpdateInterval()
         self.chart.resetBufferSize()
@@ -555,6 +638,28 @@ class PyDMChartingDisplay(Display):
         self.chart.setShowXGrid(False)
         self.chart.setShowYGrid(False)
         self.chart.setShowLegend(False)
+
+    def handle_time_span_remaining_timer_timeout(self):
+        seconds = 0
+        minutes = 0
+        hours = 0
+
+        remaining_time_ms = self.chart.getRemainingDrawingTime()
+        if remaining_time_ms <= 0:
+            self.time_span_remaining_timer.stop()
+        else:
+            seconds = int((remaining_time_ms / 1000) % 60)
+            minutes = int((remaining_time_ms / (1000 * 60)) % 60)
+            hours = int((remaining_time_ms / (1000 * 60 * 60)) % 24)
+
+        self.chart_limit_time_span_chk.setText(self.limit_time_plan_text + " (" + str(hours) + " hours : " +
+                                               str(minutes) + " minutes : " + str(seconds) + " seconds)")
+
+    def enable_chart_control_buttons(self, enabled=True):
+        self.auto_scale_btn.setEnabled(enabled)
+        self.pause_chart_btn.setEnabled(enabled)
+        self.import_data_btn.setEnabled(enabled)
+        self.export_data_btn.setEnabled(enabled)
 
     def _get_full_pv_name(self, pv_name):
         """
