@@ -4,9 +4,9 @@ from pydm.PyQt.QtGui import QColor, QMessageBox
 
 def random_color():
     """Return a random hex color description"""
-    return QColor(random.randint(0, 255),
-                  random.randint(0, 255),
-                  random.randint(0, 255))
+    return QColor(random.randint(50, 255),
+                  random.randint(50, 255),
+                  random.randint(50, 255))
 
 
 def display_message_box(icon, window_title, text):

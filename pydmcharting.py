@@ -20,9 +20,10 @@ def main():
     _parse_arguments()
 
     app = PyDMApplication(command_line_args=sys.argv, hide_nav_bar=True, hide_menu_bar=True, hide_status_bar=True,
-                          use_main_window=True)
+                          use_main_window=False)
 
     pydm_chartsdipslay = PyDMChartingDisplay()
+    pydm_chartsdipslay.setMinimumSize(1600, 800)
     pydm_chartsdipslay.show()
 
     sys.exit(app.exec_())
