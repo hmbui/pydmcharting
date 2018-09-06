@@ -19,7 +19,10 @@ class AxisSettingsDisplay(Display):
 
         self.x_axis_lbl = QLabel(text="x-axis Label")
         self.x_axis_label_line_edt = QLineEdit()
-        self.x_axis_label_line_edt.setText(self.chart.labels["bottom"])
+        current_x_label = self.chart.labels["bottom"]
+        if current_x_label:
+            current_x_label = current_x_label[:current_x_label.find(" -- Current Time: ")]
+            self.x_axis_label_line_edt.setText(current_x_label)
         self.x_axis_label_line_edt.textChanged.connect(partial(self.handle_axis_label_change, "bottom"))
 
         self.x_axis_unit_lbl = QLabel(text="x-axis Unit")
@@ -126,6 +129,10 @@ class AxisSettingsDisplay(Display):
             self.chart.setLabel(axis_position, units=new_label)
             self.chart.units[axis_position] = new_label
         else:
+            if axis_position == "bottom":
+                current_label = self.chart.getBottomAxisLabel()
+                current_label = current_label[current_label.find("Current Time: "):]
+                new_label += " -- " + current_label
             self.chart.setLabel(axis_position, text=new_label)
             self.chart.labels[axis_position] = new_label
         return
