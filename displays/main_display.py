@@ -711,8 +711,7 @@ class PyDMChartingDisplay(Display):
         else:
             seconds = int((remaining_time_ms / 1000) % 60)
             minutes = int((remaining_time_ms / (1000 * 60)) % 60)
-            hours = int((remaining_time_ms / (1000 * 60 * 60)) % 24)
-
+            hours = int((remaining_time_ms / (1000 * 60 * 60)))
         self.chart_limit_time_span_chk.setText(self.limit_time_plan_text + " (" + str(hours) + " hours : " +
                                                str(minutes) + " minutes : " + str(seconds) + " seconds)")
 
