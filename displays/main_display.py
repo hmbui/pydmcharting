@@ -1,6 +1,8 @@
 # The Main Display Window
 
 from functools import partial
+import datetime
+import time
 import json
 
 from pydm import Display
@@ -21,7 +23,7 @@ from displays.axis_settings_display import AxisSettingsDisplay
 from displays.chart_data_export_display import ChartDataExportDisplay
 from utilities.utils import random_color, display_message_box
 
-MINIMUM_BUFER_SIZE = 1200
+MINIMUM_BUFFER_SIZE = 1200
 MAXIMUM_BUFER_SIZE = 65535
 DEFAULT_BUFFER_SIZE = 7200
 
@@ -76,7 +78,7 @@ class PyDMChartingDisplay(Display):
         self.chart_settings_tab = QWidget()
 
         self.charting_layout = QHBoxLayout()
-        self.chart = PyDMTimePlot(plot_by_timestamps=True)
+        self.chart = PyDMTimePlot(plot_by_timestamps=False)
         self.chart.setPlotTitle("Time Plot")
 
         self.splitter = QSplitter()
@@ -100,6 +102,10 @@ class PyDMChartingDisplay(Display):
         self.auto_scale_btn.clicked.connect(self.handle_auto_scale_btn_clicked)
         self.auto_scale_btn.setEnabled(False)
 
+        self.view_all_btn = QPushButton("View All")
+        self.view_all_btn.clicked.connect(self.handle_view_all_button_clicked)
+        self.view_all_btn.setEnabled(False)
+
         self.resume_chart_text = "Resume"
         self.pause_chart_text = "Pause"
         self.pause_chart_btn = QPushButton(self.pause_chart_text)
@@ -117,25 +123,15 @@ class PyDMChartingDisplay(Display):
         self.chart_change_axis_settings_btn = QPushButton(text="Change Axis Settings...")
         self.chart_change_axis_settings_btn.clicked.connect(self.handle_change_axis_settings_clicked)
 
-        self.limit_time_plan_text = "Limit Time Span"
-        self.chart_limit_time_span_chk = QCheckBox(self.limit_time_plan_text)
-        self.chart_limit_time_span_lbl = QLabel("Hours : Minutes : Seconds")
-        self.chart_limit_time_span_hours_line_edt = QLineEdit()
-        self.chart_limit_time_span_minutes_line_edt = QLineEdit()
-        self.chart_limit_time_span_seconds_line_edt = QLineEdit()
-        self.chart_limit_time_span_activate_btn = QPushButton("Apply")
-        self.chart_limit_time_span_activate_btn.setDisabled(True)
         self.time_span_remaining_timer = QTimer(self)
         self.time_span_remaining_timer.setInterval(1000)
         self.time_span_remaining_timer.timeout.connect(self.handle_time_span_remaining_timer_timeout)
 
+        self.update_datetime_timer = QTimer(self)
+        self.update_datetime_timer.timeout.connect(self.handle_update_datetime_timer_timeout)
+
         self.chart_limit_time_span_layout = QHBoxLayout()
         self.chart_limit_time_span_layout.setSpacing(5)
-
-        self.chart_ring_buffer_size_lbl = QLabel("Ring Buffer Size")
-        self.chart_ring_buffer_size_edt = QLineEdit()
-        self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
-        self.chart_ring_buffer_size_edt.textChanged.connect(self.handle_buffer_size_changed)
 
         self.chart_redraw_rate_lbl = QLabel("Redraw Rate (Hz)")
         self.chart_redraw_rate_spin = QSpinBox()
@@ -158,6 +154,22 @@ class PyDMChartingDisplay(Display):
         self.chart_data_async_sampling_rate_spin.valueChanged.connect(self.handle_data_sampling_rate_changed)
         self.chart_data_sampling_rate_lbl.hide()
         self.chart_data_async_sampling_rate_spin.hide()
+
+        self.limit_time_plan_text = "Limit Time Span"
+        self.chart_limit_time_span_chk = QCheckBox(self.limit_time_plan_text)
+        self.chart_limit_time_span_chk.hide()
+        self.chart_limit_time_span_lbl = QLabel("Hours : Minutes : Seconds")
+        self.chart_limit_time_span_hours_line_edt = QLineEdit()
+        self.chart_limit_time_span_minutes_line_edt = QLineEdit()
+        self.chart_limit_time_span_seconds_line_edt = QLineEdit()
+        self.chart_limit_time_span_activate_btn = QPushButton("Apply")
+        self.chart_limit_time_span_activate_btn.setDisabled(True)
+
+        self.chart_ring_buffer_size_lbl = QLabel("Ring Buffer Size")
+        self.chart_ring_buffer_size_edt = QLineEdit()
+        self.chart_ring_buffer_size_edt.installEventFilter(self)
+        self.chart_ring_buffer_size_edt.textChanged.connect(self.handle_buffer_size_changed)
+        self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
 
         self.show_legend_chk = QCheckBox("Show Legend")
         self.show_legend_chk.setChecked(self.chart.showLegend)
@@ -247,10 +259,11 @@ class PyDMChartingDisplay(Display):
         self.tab_panel.hide()
 
         self.chart_control_layout.addWidget(self.auto_scale_btn)
+        self.chart_control_layout.addWidget(self.view_all_btn)
         self.chart_control_layout.addWidget(self.pause_chart_btn)
         #self.chart_control_layout.addWidget(self.import_data_btn)
         self.chart_control_layout.addWidget(self.export_data_btn)
-        self.chart_control_layout.insertSpacing(2, 350)
+        self.chart_control_layout.insertSpacing(3, 350)
 
         self.chart_layout.addWidget(self.chart)
         self.chart_layout.addLayout(self.chart_control_layout)
@@ -294,11 +307,6 @@ class PyDMChartingDisplay(Display):
         self.chart_limit_time_span_chk.clicked.connect(self.handle_limit_time_span_checkbox_clicked)
         self.chart_limit_time_span_activate_btn.clicked.connect(self.handle_chart_limit_time_span_activate_btn_clicked)
         self.chart_limit_time_span_activate_btn.installEventFilter(self)
-        self.chart_settings_layout.addWidget(self.chart_limit_time_span_chk)
-        self.chart_settings_layout.addLayout(self.chart_limit_time_span_layout)
-
-        self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_lbl)
-        self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_edt)
 
         self.chart_settings_layout.addWidget(self.chart_redraw_rate_lbl)
         self.chart_settings_layout.addWidget(self.chart_redraw_rate_spin)
@@ -316,6 +324,12 @@ class PyDMChartingDisplay(Display):
         self.chart_settings_layout.addWidget(self.chart_data_sampling_rate_lbl)
         self.chart_settings_layout.addWidget(self.chart_data_async_sampling_rate_spin)
 
+        self.chart_settings_layout.addWidget(self.chart_limit_time_span_chk)
+        self.chart_settings_layout.addLayout(self.chart_limit_time_span_layout)
+
+        self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_lbl)
+        self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_edt)
+
         self.chart_settings_layout.addWidget(self.show_legend_chk)
 
         self.chart_settings_layout.addWidget(self.background_color_lbl)
@@ -331,6 +345,7 @@ class PyDMChartingDisplay(Display):
         self.chart_settings_layout.addWidget(self.reset_chart_settings_btn)
 
         self.chart_sync_mode_async_radio.toggled.emit(True)
+        self.update_datetime_timer.start(1000)
 
     def eventFilter(self, obj, event):
         """
@@ -351,16 +366,21 @@ class PyDMChartingDisplay(Display):
             if event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
                 self.add_curve()
                 return True
-            else:
-                return super(PyDMChartingDisplay, self).eventFilter(obj, event)
         elif obj == self.chart_limit_time_span_activate_btn and event.type() == QEvent.KeyPress:
             if event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
                 self.handle_chart_limit_time_span_activate_btn_clicked()
                 return True
-            else:
-                return super(PyDMChartingDisplay, self).eventFilter(obj, event)
-        else:
-            return super(PyDMChartingDisplay, self).eventFilter(obj, event)
+        elif obj == self.chart_ring_buffer_size_edt:
+            if event.type() == QEvent.KeyPress and (event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return) or \
+                    event.type() == QEvent.FocusOut:
+                try:
+                    buffer_size = int(self.chart_ring_buffer_size_edt.text())
+                    if buffer_size < MINIMUM_BUFFER_SIZE:
+                        self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
+                except ValueError:
+                    display_message_box(QMessageBox.Critical, "Invalid Values","Only integer values are accepted.")
+                return True
+        return super(PyDMChartingDisplay, self).eventFilter(obj, event)
 
     def add_curve(self):
         """
@@ -504,6 +524,9 @@ class PyDMChartingDisplay(Display):
         self.chart_limit_time_span_seconds_line_edt.setVisible(is_checked)
         self.chart_limit_time_span_activate_btn.setVisible(is_checked)
 
+        self.chart_ring_buffer_size_lbl.setDisabled(is_checked)
+        self.chart_ring_buffer_size_edt.setDisabled(is_checked)
+
         if not is_checked:
             self.chart_limit_time_span_chk.setText(self.limit_time_plan_text)
             self.chart.setContinuationTimer(-1)
@@ -536,10 +559,14 @@ class PyDMChartingDisplay(Display):
             timeout_milliseconds = (self.time_span_limit_hours * 3600 + self.time_span_limit_minutes * 60 +
                                     self.time_span_limit_seconds) * 1000
             self.chart.setContinuationTimer(timeout_milliseconds)
+
+            self.chart.setTimeSpan(timeout_milliseconds / 1000)
+            self.chart_ring_buffer_size_edt.setText(str(self.chart.getBufferSize()))
+
             self.time_span_remaining_timer.start()
 
     def handle_buffer_size_changed(self, new_buffer_size):
-        if new_buffer_size and int(new_buffer_size) > MINIMUM_BUFER_SIZE:
+        if new_buffer_size and int(new_buffer_size) > MINIMUM_BUFFER_SIZE:
             self.chart.setBufferSize(new_buffer_size)
 
     def handle_redraw_rate_changed(self, new_redraw_rate):
@@ -584,10 +611,18 @@ class PyDMChartingDisplay(Display):
                 self.chart_data_sampling_rate_lbl.hide()
                 self.chart_data_async_sampling_rate_spin.hide()
 
+                self.time_span_remaining_timer.stop()
+                self.chart_limit_time_span_chk.setChecked(False)
+                self.chart_limit_time_span_chk.clicked.emit(False)
+                self.chart_limit_time_span_chk.hide()
+
+                self.chart.redraw_timer.start()
+
                 self.chart.setUpdatesAsynchronously(False)
             elif radio_btn.text() == "Asynchronous":
                 self.chart_data_sampling_rate_lbl.show()
                 self.chart_data_async_sampling_rate_spin.show()
+                self.chart_limit_time_span_chk.show()
 
                 self.chart.setUpdatesAsynchronously(True)
         self.app.establish_widget_connections(self)
@@ -595,6 +630,9 @@ class PyDMChartingDisplay(Display):
     def handle_auto_scale_btn_clicked(self):
         self.chart.resetAutoRangeX()
         self.chart.resetAutoRangeY()
+
+    def handle_view_all_button_clicked(self):
+        self.chart.getViewBox().autoRange()
 
     def handle_pause_chart_btn_clicked(self):
         remaining_time = self.chart.pausePlotting()
@@ -606,6 +644,7 @@ class PyDMChartingDisplay(Display):
     @pyqtSlot()
     def handle_reset_chart_settings_btn_clicked(self):
         self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
+
         self.chart_redraw_rate_spin.setValue(DEFAULT_REDRAW_RATE_HZ)
         self.chart_data_async_sampling_rate_spin.setValue(DEFAULT_DATA_SAMPLING_RATE_HZ)
         self.chart_data_sampling_rate_lbl.hide()
@@ -657,6 +696,8 @@ class PyDMChartingDisplay(Display):
 
     def enable_chart_control_buttons(self, enabled=True):
         self.auto_scale_btn.setEnabled(enabled)
+        self.view_all_btn.setEnabled(enabled)
+        self.pause_chart_btn.setText(self.pause_chart_text)
         self.pause_chart_btn.setEnabled(enabled)
         self.import_data_btn.setEnabled(enabled)
         self.export_data_btn.setEnabled(enabled)
@@ -673,3 +714,16 @@ class PyDMChartingDisplay(Display):
         if pv_name and "://" not in pv_name:
             pv_name = ''.join([self.pv_protocol_cmb.currentText(), pv_name])
         return pv_name
+
+    def handle_update_datetime_timer_timeout(self):
+        current_label = self.chart.getBottomAxisLabel()
+        self.chart.setLabel("bottom",
+                            text=current_label[:current_label.find(
+                                " Current Time: ")] + " Current Time: " + self.get_current_datetime())
+
+    def get_current_datetime(self):
+        current_date = datetime.datetime.now().strftime("%b %d, %Y")
+        current_time = datetime.datetime.now().strftime("%H:%M:%S")
+        current_datetime = current_time + ' (' + current_date + ')'
+
+        return current_datetime
