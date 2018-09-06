@@ -6,7 +6,7 @@ import time
 import json
 
 from pydm import Display
-from pydm.widgets.timeplot import PyDMTimePlot
+from pydm.widgets.timeplot import PyDMTimePlot, DEFAULT_X_MIN
 
 from pydmcharting_logging import logging
 logger = logging.getLogger(__name__)
@@ -37,6 +37,9 @@ DEFAULT_DATA_SAMPLING_RATE_HZ = 10
 
 DEFAULT_CHART_BACKGROUND_COLOR = QColor("black")
 DEFAULT_CHART_AXIS_COLOR = QColor("white")
+
+ASYNC_DATA_SAMPLING = 0
+SYNC_DATA_SAMPLING = 0
 
 
 class PyDMChartingDisplay(Display):
@@ -98,13 +101,17 @@ class PyDMChartingDisplay(Display):
         self.chart_control_layout.setAlignment(Qt.AlignHCenter)
         self.chart_control_layout.setSpacing(5)
 
+        self.view_all_btn = QPushButton("View All")
+        self.view_all_btn.clicked.connect(self.handle_view_all_button_clicked)
+        self.view_all_btn.setEnabled(False)
+
         self.auto_scale_btn = QPushButton("Auto Scale")
         self.auto_scale_btn.clicked.connect(self.handle_auto_scale_btn_clicked)
         self.auto_scale_btn.setEnabled(False)
 
-        self.view_all_btn = QPushButton("View All")
-        self.view_all_btn.clicked.connect(self.handle_view_all_button_clicked)
-        self.view_all_btn.setEnabled(False)
+        self.reset_chart_btn = QPushButton("Reset")
+        self.reset_chart_btn.clicked.connect(self.handle_reset_chart_btn_clicked)
+        self.reset_chart_btn.setEnabled(False)
 
         self.resume_chart_text = "Resume"
         self.pause_chart_text = "Pause"
@@ -218,10 +225,11 @@ class PyDMChartingDisplay(Display):
         self.curve_settings_disp = None
         self.axis_settings_disp = None
         self.chart_data_export_disp = None
-        self._grid_alpha = 5
+        self.grid_alpha = 5
         self.time_span_limit_hours = None
         self.time_span_limit_minutes = None
         self.time_span_limit_seconds = None
+        self.data_sampling_mode = ASYNC_DATA_SAMPLING
 
     def minimumSizeHint(self):
         """
@@ -260,10 +268,11 @@ class PyDMChartingDisplay(Display):
 
         self.chart_control_layout.addWidget(self.auto_scale_btn)
         self.chart_control_layout.addWidget(self.view_all_btn)
+        self.chart_control_layout.addWidget(self.reset_chart_btn)
         self.chart_control_layout.addWidget(self.pause_chart_btn)
         #self.chart_control_layout.addWidget(self.import_data_btn)
         self.chart_control_layout.addWidget(self.export_data_btn)
-        self.chart_control_layout.insertSpacing(3, 350)
+        self.chart_control_layout.insertSpacing(3, 250)
 
         self.chart_layout.addWidget(self.chart)
         self.chart_layout.addLayout(self.chart_control_layout)
@@ -376,9 +385,9 @@ class PyDMChartingDisplay(Display):
                 try:
                     buffer_size = int(self.chart_ring_buffer_size_edt.text())
                     if buffer_size < MINIMUM_BUFFER_SIZE:
-                        self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
+                        self.chart_ring_buffer_size_edt.setText(str(MINIMUM_BUFFER_SIZE))
                 except ValueError:
-                    display_message_box(QMessageBox.Critical, "Invalid Values","Only integer values are accepted.")
+                    display_message_box(QMessageBox.Critical, "Invalid Values",  "Only integer values are accepted.")
                 return True
         return super(PyDMChartingDisplay, self).eventFilter(obj, event)
 
@@ -566,8 +575,11 @@ class PyDMChartingDisplay(Display):
             self.time_span_remaining_timer.start()
 
     def handle_buffer_size_changed(self, new_buffer_size):
-        if new_buffer_size and int(new_buffer_size) > MINIMUM_BUFFER_SIZE:
-            self.chart.setBufferSize(new_buffer_size)
+        try:
+            if new_buffer_size and int(new_buffer_size) > MINIMUM_BUFFER_SIZE:
+                self.chart.setBufferSize(new_buffer_size)
+        except ValueError:
+            display_message_box(QMessageBox.Critical, "Invalid Values", "Only integer values are accepted.")
 
     def handle_redraw_rate_changed(self, new_redraw_rate):
         self.chart.maxRedrawRate = new_redraw_rate
@@ -588,15 +600,15 @@ class PyDMChartingDisplay(Display):
         self.axis_color_btn.setStyleSheet("background-color: " + selected_color.name())
 
     def handle_grid_opacity_slider_mouse_release(self):
-        self._grid_alpha = float(self.grid_opacity_slr.value()) / 10.0
-        self.chart.setShowXGrid(self.show_x_grid_chk.isChecked(), self._grid_alpha)
-        self.chart.setShowYGrid(self.show_y_grid_chk.isChecked(), self._grid_alpha)
+        self.grid_alpha = float(self.grid_opacity_slr.value()) / 10.0
+        self.chart.setShowXGrid(self.show_x_grid_chk.isChecked(), self.grid_alpha)
+        self.chart.setShowYGrid(self.show_y_grid_chk.isChecked(), self.grid_alpha)
 
     def handle_show_x_grid_checkbox_clicked(self, is_checked):
-        self.chart.setShowXGrid(is_checked, self._grid_alpha)
+        self.chart.setShowXGrid(is_checked, self.grid_alpha)
 
     def handle_show_y_grid_checkbox_clicked(self, is_checked):
-        self.chart.setShowYGrid(is_checked, self._grid_alpha)
+        self.chart.setShowYGrid(is_checked, self.grid_alpha)
 
     def handle_show_legend_checkbox_clicked(self, is_checked):
         self.chart.setShowLegend(is_checked)
@@ -608,22 +620,28 @@ class PyDMChartingDisplay(Display):
     def handle_sync_mode_radio_toggle(self, radio_btn):
         if radio_btn.isChecked():
             if radio_btn.text() == "Synchronous":
+                self.data_sampling_mode = SYNC_DATA_SAMPLING
+
                 self.chart_data_sampling_rate_lbl.hide()
                 self.chart_data_async_sampling_rate_spin.hide()
 
                 self.time_span_remaining_timer.stop()
+                self.chart.resetTimeSpan()
+
                 self.chart_limit_time_span_chk.setChecked(False)
                 self.chart_limit_time_span_chk.clicked.emit(False)
                 self.chart_limit_time_span_chk.hide()
 
                 self.chart.redraw_timer.start()
-
+                
                 self.chart.setUpdatesAsynchronously(False)
             elif radio_btn.text() == "Asynchronous":
+                self.data_sampling_mode = ASYNC_DATA_SAMPLING
+
                 self.chart_data_sampling_rate_lbl.show()
                 self.chart_data_async_sampling_rate_spin.show()
                 self.chart_limit_time_span_chk.show()
-
+                
                 self.chart.setUpdatesAsynchronously(True)
         self.app.establish_widget_connections(self)
 
@@ -640,6 +658,10 @@ class PyDMChartingDisplay(Display):
             self.pause_chart_btn.setText(self.pause_chart_text)
         else:
             self.pause_chart_btn.setText(self.resume_chart_text)
+
+    def handle_reset_chart_btn_clicked(self):
+        self.chart.getViewBox().setXRange(DEFAULT_X_MIN, 0)
+        self.chart.resetAutoRangeY()
 
     @pyqtSlot()
     def handle_reset_chart_settings_btn_clicked(self):
@@ -697,6 +719,7 @@ class PyDMChartingDisplay(Display):
     def enable_chart_control_buttons(self, enabled=True):
         self.auto_scale_btn.setEnabled(enabled)
         self.view_all_btn.setEnabled(enabled)
+        self.reset_chart_btn.setEnabled(enabled)
         self.pause_chart_btn.setText(self.pause_chart_text)
         self.pause_chart_btn.setEnabled(enabled)
         self.import_data_btn.setEnabled(enabled)
@@ -717,9 +740,8 @@ class PyDMChartingDisplay(Display):
 
     def handle_update_datetime_timer_timeout(self):
         current_label = self.chart.getBottomAxisLabel()
-        self.chart.setLabel("bottom",
-                            text=current_label[:current_label.find(
-                                " Current Time: ")] + " Current Time: " + self.get_current_datetime())
+        current_label = current_label[:current_label.find("Current Time: ")]
+        self.chart.setLabel("bottom", text=current_label + "Current Time: " + self.get_current_datetime())
 
     def get_current_datetime(self):
         current_date = datetime.datetime.now().strftime("%b %d, %Y")
@@ -727,3 +749,7 @@ class PyDMChartingDisplay(Display):
         current_datetime = current_time + ' (' + current_date + ')'
 
         return current_datetime
+
+    @property
+    def gridAlpha(self):
+        return self.grid_alpha

@@ -1,9 +1,11 @@
 # The Dialog to Export Data from a Chart
 
-from pydm.PyQt.QtCore import Qt
-from pydm.PyQt.QtGui import QVBoxLayout, QCheckBox, QFileDialog, QLayout, QFormLayout, QLabel, QComboBox, QSpinBox, QPushButton, QColorDialog
+from pydm.PyQt.QtCore import Qt, QSize
+from pydm.PyQt.QtGui import QVBoxLayout, QCheckBox, QFileDialog, QLayout, QLabel, QComboBox, QPushButton
+from pyqtgraph.exporters import CSVExporter
 
 from pydm import Display
+from exporters.settings_exporter import SettingsExporter
 
 
 class ChartDataExportDisplay(Display):
@@ -17,14 +19,15 @@ class ChartDataExportDisplay(Display):
         self.export_options_lbl.setText("Export Options")
         self.export_options_cmb = QComboBox()
         self.export_options_cmb.addItems(("Curve Data", "Chart Settings"))
+        self.export_options_cmb.currentIndexChanged.connect(self.handle_export_options_index_changed)
 
         self.include_pv_chk = QCheckBox()
         self.include_pv_chk.setText("Include currently plotted PVs")
         self.include_pv_chk.setChecked(True)
 
-        self.include_chart_settings = QCheckBox()
-        self.include_chart_settings.setText("Include current chart settings")
-        self.include_chart_settings.setChecked(True)
+        self.include_chart_settings_chk = QCheckBox()
+        self.include_chart_settings_chk.setText("Include current chart settings")
+        self.include_chart_settings_chk.setChecked(True)
 
         self.export_format_lbl = QLabel()
         self.export_format_lbl.setText("Export Format")
@@ -35,6 +38,7 @@ class ChartDataExportDisplay(Display):
         self.save_file_btn = QPushButton("Export...")
         self.save_file_btn.clicked.connect(self.handle_save_file_btn_clicked)
 
+        self.setFixedSize(QSize(500, 450))
         self.setWindowTitle("Export Chart Settings")
         self.setWindowModality(Qt.ApplicationModal)
         self.setup_ui()
@@ -51,13 +55,30 @@ class ChartDataExportDisplay(Display):
         self.main_layout.addWidget(self.export_options_lbl)
         self.main_layout.addWidget(self.export_options_cmb)
         self.main_layout.addWidget(self.include_pv_chk)
-        self.main_layout.addWidget(self.include_chart_settings)
+        self.main_layout.addWidget(self.include_chart_settings_chk)
         self.main_layout.addWidget(self.export_format_lbl)
         self.main_layout.addWidget(self.file_format_cmb)
         self.main_layout.addWidget(self.save_file_btn)
 
         self.setLayout(self.main_layout)
 
+        self.export_options_cmb.currentIndexChanged.emit(0)
+
+    def handle_export_options_index_changed(self, selected_index):
+        self.include_pv_chk.setVisible(selected_index != 0)
+        self.include_chart_settings_chk.setVisible(selected_index != 0)
+        self.file_format_cmb.setCurrentIndex(selected_index)
+        self.file_format = "*." + self.file_format_cmb.currentText()
+        self.file_format_cmb.setEnabled(False)
+
     def handle_save_file_btn_clicked(self):
-        saved_file_name = QFileDialog.getSaveFileName(self, caption="Save File", filter=self.file_format)
-        print("Saved file name: {}".format(saved_file_name))
+        saved_file_info = QFileDialog.getSaveFileName(self, caption="Save File", filter=self.file_format)
+        saved_file_name = saved_file_info[0] + saved_file_info[1][1:]
+        if saved_file_name:
+            if self.export_options_cmb.currentIndex() == 0:
+                data_exporter = CSVExporter(self.main_display.chart.plotItem)
+                data_exporter.export(saved_file_name)
+            else:
+                settings_exporter = SettingsExporter(self.main_display)
+                settings_exporter.export(saved_file_name)
+
