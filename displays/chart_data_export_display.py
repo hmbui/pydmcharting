@@ -5,7 +5,7 @@ from pydm.PyQt.QtGui import QVBoxLayout, QCheckBox, QFileDialog, QLayout, QLabel
 from pyqtgraph.exporters import CSVExporter
 
 from pydm import Display
-from exporters.settings_exporter import SettingsExporter
+from data_io.settings_exporter import SettingsExporter
 
 
 class ChartDataExportDisplay(Display):
@@ -73,12 +73,16 @@ class ChartDataExportDisplay(Display):
 
     def handle_save_file_btn_clicked(self):
         saved_file_info = QFileDialog.getSaveFileName(self, caption="Save File", filter=self.file_format)
-        saved_file_name = saved_file_info[0] + saved_file_info[1][1:]
+        saved_file_name = saved_file_info[0]
+        if saved_file_info[1][1:] not in saved_file_name:
+            saved_file_name += saved_file_info[1][1:]
+
         if saved_file_name:
             if self.export_options_cmb.currentIndex() == 0:
                 data_exporter = CSVExporter(self.main_display.chart.plotItem)
                 data_exporter.export(saved_file_name)
             else:
-                settings_exporter = SettingsExporter(self.main_display)
-                settings_exporter.export(saved_file_name)
+                settings_exporter = SettingsExporter(self.main_display, self.include_pv_chk.isChecked(),
+                                                     self.include_chart_settings_chk.isChecked())
+                settings_exporter.export_settings(saved_file_name)
 

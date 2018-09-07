@@ -7,6 +7,7 @@ import json
 
 from pydm import Display
 from pydm.widgets.timeplot import PyDMTimePlot, DEFAULT_X_MIN
+from data_io.settings_importer import SettingsImporter
 
 from pydmcharting_logging import logging
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ setup_paths()
 
 from pydm.PyQt.QtGui import QApplication, QWidget, QCheckBox, QColor, QPalette, QHBoxLayout, QVBoxLayout, QLabel, \
     QSplitter, QComboBox, QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, QColorDialog, QGroupBox, \
-    QRadioButton, QMessageBox
+    QRadioButton, QMessageBox, QFileDialog
 from pydm.PyQt.QtCore import Qt, QEvent, pyqtSlot, QSize, QTimer
 from displays.curve_settings_display import CurveSettingsDisplay
 from displays.axis_settings_display import AxisSettingsDisplay
@@ -39,7 +40,9 @@ DEFAULT_CHART_BACKGROUND_COLOR = QColor("black")
 DEFAULT_CHART_AXIS_COLOR = QColor("white")
 
 ASYNC_DATA_SAMPLING = 0
-SYNC_DATA_SAMPLING = 0
+SYNC_DATA_SAMPLING = 1
+
+IMPORT_FILE_FORMAT = "json"
 
 
 class PyDMChartingDisplay(Display):
@@ -119,6 +122,8 @@ class PyDMChartingDisplay(Display):
         self.pause_chart_btn.clicked.connect(self.handle_pause_chart_btn_clicked)
 
         self.import_data_btn = QPushButton("Import Data...")
+        self.import_data_btn.clicked.connect(self.handle_import_data_btn_clicked)
+
         self.export_data_btn = QPushButton("Export Data...")
         self.export_data_btn.clicked.connect(self.handle_export_data_btn_clicked)
 
@@ -225,6 +230,7 @@ class PyDMChartingDisplay(Display):
         self.curve_settings_disp = None
         self.axis_settings_disp = None
         self.chart_data_export_disp = None
+        self.chart_data_import_disp = None
         self.grid_alpha = 5
         self.time_span_limit_hours = None
         self.time_span_limit_minutes = None
@@ -270,7 +276,7 @@ class PyDMChartingDisplay(Display):
         self.chart_control_layout.addWidget(self.view_all_btn)
         self.chart_control_layout.addWidget(self.reset_chart_btn)
         self.chart_control_layout.addWidget(self.pause_chart_btn)
-        #self.chart_control_layout.addWidget(self.import_data_btn)
+        self.chart_control_layout.addWidget(self.import_data_btn)
         self.chart_control_layout.addWidget(self.export_data_btn)
         self.chart_control_layout.insertSpacing(3, 250)
 
@@ -396,19 +402,22 @@ class PyDMChartingDisplay(Display):
         Add a new curve to the chart.
         """
         pv_name = self._get_full_pv_name(self.pv_name_line_edt.text())
+        color = random_color()
+        self.add_y_channel(pv_name=pv_name, curve_name=pv_name, color=color)
+
+    def add_y_channel(self, pv_name, curve_name, color, line_style=Qt.SolidLine, line_width=2, symbol=None,
+                      symbol_size=None):
         if pv_name in self.channel_map:
             logger.error("'{0}' has already been plotted.".format(pv_name))
             return
-        elif pv_name:
-            color = random_color()
-            curve = self.chart.addYChannel(y_channel=pv_name, color=color, name=pv_name, lineStyle=Qt.SolidLine,
-                                           lineWidth=2, symbol=None, symbolSize=None)
-            self.channel_map[pv_name] = curve
-            self.generate_pv_checkbox(pv_name, color)
 
-            self.enable_chart_control_buttons()
+        curve = self.chart.addYChannel(y_channel=pv_name, name=curve_name, color=color, lineStyle=line_style,
+                                       lineWidth=line_width, symbol=symbol, symbolSize=symbol_size)
+        self.channel_map[pv_name] = curve
+        self.generate_pv_checkbox(pv_name, color)
 
-            self.app.establish_widget_connections(self)
+        self.enable_chart_control_buttons()
+        self.app.establish_widget_connections(self)
 
     def generate_pv_checkbox(self, pv_name, curve_color):
         """
@@ -540,7 +549,7 @@ class PyDMChartingDisplay(Display):
             self.chart_limit_time_span_chk.setText(self.limit_time_plan_text)
             self.chart.setContinuationTimer(-1)
 
-    def handle_time_span_edt_text_changed(self):
+    def handle_time_span_edt_text_changed(self, new_text):
         try:
             self.time_span_limit_hours = int(self.chart_limit_time_span_hours_line_edt.text())
             self.time_span_limit_minutes = int(self.chart_limit_time_span_minutes_line_edt.text())
@@ -616,6 +625,13 @@ class PyDMChartingDisplay(Display):
     def handle_export_data_btn_clicked(self):
         self.chart_data_export_disp = ChartDataExportDisplay(self)
         self.chart_data_export_disp.show()
+
+    def handle_import_data_btn_clicked(self):
+        open_file_info = QFileDialog.getOpenFileName(self, caption="Save File", filter="*." + IMPORT_FILE_FORMAT)
+        open_file_name = open_file_info[0]
+        if open_file_name:
+            importer = SettingsImporter(self)
+            importer.import_settings(open_file_name)
 
     def handle_sync_mode_radio_toggle(self, radio_btn):
         if radio_btn.isChecked():
@@ -721,7 +737,6 @@ class PyDMChartingDisplay(Display):
         self.reset_chart_btn.setEnabled(enabled)
         self.pause_chart_btn.setText(self.pause_chart_text)
         self.pause_chart_btn.setEnabled(enabled)
-        self.import_data_btn.setEnabled(enabled)
         self.export_data_btn.setEnabled(enabled)
 
     def _get_full_pv_name(self, pv_name):
