@@ -35,6 +35,7 @@ class SettingsImporter:
             chart.setLabel("right", text=chart_settings["right_y_axis_title"])
             chart.setLabel("right", unit=chart_settings["right_y_axis_unit"])
 
+            self.main_display.chart_redraw_rate_spin.setValue(chart_settings["redraw_rate"])
             self.main_display.chart_redraw_rate_spin.valueChanged.emit(chart_settings["redraw_rate"])
 
             data_sampling_mode = chart_settings["data_sampling_mode"]
@@ -43,31 +44,30 @@ class SettingsImporter:
             self.main_display.chart_sync_mode_async_radio.toggled.emit(data_sampling_mode ==
                                                                        main_display.ASYNC_DATA_SAMPLING)
 
-            self.main_display.chart_data_async_sampling_rate_spin.valueChanged.emit(chart_settings["update_interval_hz"])
+            self.main_display.chart_data_async_sampling_rate_spin.setValue(chart_settings["update_interval_hz"])
+            self.main_display.chart_data_async_sampling_rate_spin.valueChanged.emit(
+                chart_settings["update_interval_hz"])
 
-            time_span_limit_hours = chart_settings["time_span_limit_hours"]
-            self.main_display.chart_limit_time_span_hours_line_edt.setText(str(time_span_limit_hours))
-            self.main_display.chart_limit_time_span_hours_line_edt.textChanged.emit(str(time_span_limit_hours))
+            time_span_limit_hours = int(chart_settings["time_span_limit_hours"])
+            time_span_limit_minutes = int(chart_settings["time_span_limit_minutes"])
+            time_span_limit_seconds = int(chart_settings["time_span_limit_seconds"])
 
-            time_span_limit_minutes = chart_settings["time_span_limit_minutes"]
-            self.main_display.chart_limit_time_span_minutes_line_edt.setText(str(time_span_limit_minutes))
-            self.main_display.chart_limit_time_span_minutes_line_edt.textChanged.emit(str(time_span_limit_minutes))
+            if time_span_limit_hours != 0 or time_span_limit_minutes != 0 or time_span_limit_seconds != 0:
+                self.main_display.chart_limit_time_span_hours_line_edt.setText(str(time_span_limit_hours))
+                self.main_display.chart_limit_time_span_hours_line_edt.textChanged.emit(str(time_span_limit_hours))
 
-            time_span_limit_seconds = chart_settings["time_span_limit_seconds"]
-            self.main_display.chart_limit_time_span_seconds_line_edt.setText(str(time_span_limit_seconds))
-            self.main_display.chart_limit_time_span_seconds_line_edt.textChanged.emit(str(time_span_limit_seconds))
+                self.main_display.chart_limit_time_span_minutes_line_edt.setText(str(time_span_limit_minutes))
+                self.main_display.chart_limit_time_span_minutes_line_edt.textChanged.emit(str(time_span_limit_minutes))
 
-            set_time_span = True
-            if time_span_limit_hours == 0 and time_span_limit_minutes == 0 and time_span_limit_seconds == 0:
-                set_time_span = False
+                self.main_display.chart_limit_time_span_seconds_line_edt.setText(str(time_span_limit_seconds))
+                self.main_display.chart_limit_time_span_seconds_line_edt.textChanged.emit(str(time_span_limit_seconds))
 
-            self.main_display.chart_limit_time_span_chk.setChecked(chart_settings["limit_time_span"] and set_time_span)
-            self.main_display.chart_limit_time_span_chk.clicked.emit(chart_settings["limit_time_span"] and
-                                                                     set_time_span)
+                self.main_display.chart_limit_time_span_chk.setChecked(chart_settings["limit_time_span"])
+                self.main_display.chart_limit_time_span_chk.clicked.emit(chart_settings["limit_time_span"])
 
-            if set_time_span:
                 self.main_display.chart_limit_time_span_activate_btn.clicked.emit()
 
+            self.main_display.chart_ring_buffer_size_edt.setText(str(chart_settings["buffer_size"]))
             self.main_display.chart_ring_buffer_size_edt.textChanged.emit(str(chart_settings["buffer_size"]))
 
             self.main_display.show_legend_chk.setChecked(chart_settings["show_legend"])

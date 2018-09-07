@@ -588,7 +588,7 @@ class PyDMChartingDisplay(Display):
             if new_buffer_size and int(new_buffer_size) > MINIMUM_BUFFER_SIZE:
                 self.chart.setBufferSize(new_buffer_size)
         except ValueError:
-            display_message_box(QMessageBox.Critical, "Invalid Values", "Only integer values are accepted.")
+            display_messagchart_data_async_sampling_rate_spine_box(QMessageBox.Critical, "Invalid Values", "Only integer values are accepted.")
 
     def handle_redraw_rate_changed(self, new_redraw_rate):
         self.chart.maxRedrawRate = new_redraw_rate
