@@ -56,8 +56,8 @@ class SettingsExporter:
             time_span_limit_seconds = self.main_display.chart_limit_time_span_seconds_line_edt.text()
 
             chart_settings["time_span_limit_hours"] = time_span_limit_hours if time_span_limit_hours else 0
-            chart_settings["time_span_limit_minutes"] = time_span_limit_hours if time_span_limit_minutes else 0
-            chart_settings["time_span_limit_seconds"] = time_span_limit_hours if time_span_limit_seconds else 0
+            chart_settings["time_span_limit_minutes"] = time_span_limit_minutes if time_span_limit_minutes else 0
+            chart_settings["time_span_limit_seconds"] = time_span_limit_seconds if time_span_limit_seconds else 0
 
             chart_settings["buffer_size"] = chart.getBufferSize()
             chart_settings["show_legend"] = chart.getShowLegend()
