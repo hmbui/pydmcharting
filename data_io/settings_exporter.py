@@ -3,6 +3,7 @@ from collections import OrderedDict
 import json
 
 from pydm import utilities
+from version import VERSION
 
 
 class SettingsExporter:
@@ -13,6 +14,7 @@ class SettingsExporter:
 
     def export_settings(self, filename):
         settings = OrderedDict()
+        settings["__version__"] = VERSION
         settings["pvs"] = OrderedDict()
         settings["chart_settings"] = OrderedDict()
 
@@ -49,9 +51,9 @@ class SettingsExporter:
             chart_settings["update_interval_hz"] = 1 / chart.getUpdateInterval()
             chart_settings["limit_time_span"] = self.main_display.chart_limit_time_span_chk.isChecked()
 
-            time_span_limit_hours = int(self.main_display.chart_limit_time_span_hours_line_edt.text())
-            time_span_limit_minutes = int(self.main_display.chart_limit_time_span_minutes_line_edt.text())
-            time_span_limit_seconds = int(self.main_display.chart_limit_time_span_seconds_line_edt.text())
+            time_span_limit_hours = self.main_display.chart_limit_time_span_hours_line_edt.text()
+            time_span_limit_minutes = self.main_display.chart_limit_time_span_minutes_line_edt.text()
+            time_span_limit_seconds = self.main_display.chart_limit_time_span_seconds_line_edt.text()
 
             chart_settings["time_span_limit_hours"] = time_span_limit_hours if time_span_limit_hours else 0
             chart_settings["time_span_limit_minutes"] = time_span_limit_hours if time_span_limit_minutes else 0
