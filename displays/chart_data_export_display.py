@@ -38,11 +38,10 @@ class ChartDataExportDisplay(Display):
         self.save_file_btn = QPushButton("Export...")
         self.save_file_btn.clicked.connect(self.handle_save_file_btn_clicked)
 
-        self.setFixedSize(QSize(500, 450))
+        self.setFixedSize(QSize(300, 150))
         self.setWindowTitle("Export Chart Settings")
         self.setWindowModality(Qt.ApplicationModal)
         self.setup_ui()
-        self.layout().setSizeConstraint(QLayout.SetFixedSize)
 
     def ui_filepath(self):
         """

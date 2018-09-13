@@ -2,8 +2,9 @@
 
 from functools import partial
 import datetime
-import time
-import json
+
+import numpy as np
+import pyqtgraph
 
 from pydm import Display
 from pydm.widgets.timeplot import PyDMTimePlot, DEFAULT_X_MIN
@@ -17,7 +18,7 @@ setup_paths()
 
 from pydm.PyQt.QtGui import QApplication, QWidget, QCheckBox, QColor, QPalette, QHBoxLayout, QVBoxLayout, QLabel, \
     QSplitter, QComboBox, QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, QColorDialog, QGroupBox, \
-    QRadioButton, QMessageBox, QFileDialog
+    QRadioButton, QMessageBox, QFileDialog, QScrollArea
 from pydm.PyQt.QtCore import Qt, QEvent, pyqtSlot, QSize, QTimer
 from displays.curve_settings_display import CurveSettingsDisplay
 from displays.axis_settings_display import AxisSettingsDisplay
@@ -84,17 +85,34 @@ class PyDMChartingDisplay(Display):
         self.chart_settings_tab = QWidget()
 
         self.charting_layout = QHBoxLayout()
-        self.chart = PyDMTimePlot(plot_by_timestamps=False)
+        self.chart = PyDMTimePlot(plot_by_timestamps=False, timeplot_display=self)
         self.chart.setPlotTitle("Time Plot")
 
         self.splitter = QSplitter()
 
         self.curve_settings_layout = QVBoxLayout()
         self.curve_settings_layout.setAlignment(Qt.AlignTop)
-        self.curve_settings_layout.setSpacing(5)
+        self.curve_settings_layout.setSpacing(3)
+
+        self.crosshair_settings_layout = QVBoxLayout()
+        self.crosshair_settings_layout.setAlignment(Qt.AlignTop)
+        self.crosshair_settings_layout.setSpacing(5)
+
+        self.enable_crosshair_chk = QCheckBox("Enable Crosshair")
+        self.cross_hair_coord_lbl = QLabel()
+
+        self.all_curves_scroll = QScrollArea()
+        self.all_curves_scroll.setWidgetResizable(True)
+        self.all_curves_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        #self.all_curves_grpbx.setFixedSize(600, 600)
+        #self.all_curves_scroll.setWidget(self.curve_settings_tab)
+
+        self.enable_crosshair_chk.setChecked(False)
+        self.enable_crosshair_chk.clicked.connect(self.handle_enable_crosshair_checkbox_clicked)
+        self.enable_crosshair_chk.clicked.emit(False)
 
         self.chart_settings_layout = QVBoxLayout()
-        self.chart_settings_layout.setAlignment(Qt.AlignTop)
+        self.chart_settings_layout.setAlignment(Qt.AlignHCenter)
         self.chart_settings_layout.setSpacing(10)
 
         self.chart_layout = QVBoxLayout()
@@ -102,7 +120,7 @@ class PyDMChartingDisplay(Display):
 
         self.chart_control_layout = QHBoxLayout()
         self.chart_control_layout.setAlignment(Qt.AlignHCenter)
-        self.chart_control_layout.setSpacing(5)
+        self.chart_control_layout.setSpacing(30)
 
         self.view_all_btn = QPushButton("View All")
         self.view_all_btn.clicked.connect(self.handle_view_all_button_clicked)
@@ -272,13 +290,19 @@ class PyDMChartingDisplay(Display):
         self.tab_panel.addTab(self.chart_settings_tab, "Chart")
         self.tab_panel.hide()
 
+        self.crosshair_settings_layout.addWidget(self.enable_crosshair_chk)
+        self.crosshair_settings_layout.addWidget(self.cross_hair_coord_lbl)
+
         self.chart_control_layout.addWidget(self.auto_scale_btn)
         self.chart_control_layout.addWidget(self.view_all_btn)
         self.chart_control_layout.addWidget(self.reset_chart_btn)
         self.chart_control_layout.addWidget(self.pause_chart_btn)
+        self.chart_control_layout.addLayout(self.crosshair_settings_layout)
         self.chart_control_layout.addWidget(self.import_data_btn)
         self.chart_control_layout.addWidget(self.export_data_btn)
-        self.chart_control_layout.insertSpacing(3, 250)
+
+        self.chart_control_layout.setStretch(4, 25)
+        self.chart_control_layout.insertSpacing(5, 350)
 
         self.chart_layout.addWidget(self.chart)
         self.chart_layout.addLayout(self.chart_control_layout)
@@ -403,7 +427,15 @@ class PyDMChartingDisplay(Display):
         """
         pv_name = self._get_full_pv_name(self.pv_name_line_edt.text())
         color = random_color()
+        for k, v in self.channel_map.items():
+            if color == v.color:
+                color = random_color()
+
         self.add_y_channel(pv_name=pv_name, curve_name=pv_name, color=color)
+
+    def handle_enable_crosshair_checkbox_clicked(self, is_checked):
+        self.chart.enableCrosshair(is_checked)
+        self.cross_hair_coord_lbl.setVisible(is_checked)
 
     def add_y_channel(self, pv_name, curve_name, color, line_style=Qt.SolidLine, line_width=2, symbol=None,
                       symbol_size=None):
@@ -414,12 +446,12 @@ class PyDMChartingDisplay(Display):
         curve = self.chart.addYChannel(y_channel=pv_name, name=curve_name, color=color, lineStyle=line_style,
                                        lineWidth=line_width, symbol=symbol, symbolSize=symbol_size)
         self.channel_map[pv_name] = curve
-        self.generate_pv_checkbox(pv_name, color)
+        self.generate_pv_controls(pv_name, color)
 
         self.enable_chart_control_buttons()
         self.app.establish_widget_connections(self)
 
-    def generate_pv_checkbox(self, pv_name, curve_color):
+    def generate_pv_controls(self, pv_name, curve_color):
         """
         Generate a set of widgets to manage the appearance of a curve. The set of widgets includes:
             1. A checkbox which shows the curve on the chart if checked, and hide the curve if not checked
@@ -443,6 +475,13 @@ class PyDMChartingDisplay(Display):
 
         checkbox.setPalette(palette)
         checkbox.setText(pv_name.split("://")[1])
+
+        data_text = QLabel()
+        data_text.setObjectName(pv_name)
+
+        data_text.setPalette(palette)
+        data_text.hide()
+
         checkbox.setChecked(True)
         checkbox.clicked.connect(partial(self.handle_curve_chkbox_toggled, checkbox))
 
@@ -453,16 +492,30 @@ class PyDMChartingDisplay(Display):
         modify_curve_btn.setMaximumWidth(100)
         modify_curve_btn.clicked.connect(partial(self.display_curve_settings_dialog, pv_name))
 
+        focus_curve_btn = QPushButton("Focus")
+        focus_curve_btn.setObjectName(pv_name)
+        focus_curve_btn.setMaximumWidth(100)
+        focus_curve_btn.clicked.connect(partial(self.focus_curve, pv_name))
+
         remove_curve_btn = QPushButton("Remove")
         remove_curve_btn.setObjectName(pv_name)
         remove_curve_btn.setMaximumWidth(100)
         remove_curve_btn.clicked.connect(partial(self.remove_curve, pv_name))
 
         curve_btn_layout.addWidget(modify_curve_btn)
+        curve_btn_layout.addWidget(focus_curve_btn)
         curve_btn_layout.addWidget(remove_curve_btn)
 
-        self.curve_settings_layout.addWidget(checkbox)
-        self.curve_settings_layout.addLayout(curve_btn_layout)
+        individual_curve_layout = QVBoxLayout()
+        individual_curve_layout.addWidget(checkbox)
+        individual_curve_layout.addWidget(data_text)
+        individual_curve_layout.addLayout(curve_btn_layout)
+
+        individual_curve_grpbx = QGroupBox()
+        individual_curve_grpbx.setObjectName(pv_name)
+        individual_curve_grpbx.setLayout(individual_curve_layout)
+
+        self.curve_settings_layout.addWidget(individual_curve_grpbx)
         self.tab_panel.show()
 
     def handle_curve_chkbox_toggled(self, checkbox):
@@ -505,6 +558,9 @@ class PyDMChartingDisplay(Display):
         self.curve_settings_disp = CurveSettingsDisplay(self, pv_name)
         self.curve_settings_disp.show()
 
+    def focus_curve(self, pv_name):
+        pass
+
     def remove_curve(self, pv_name):
         """
         Remove a curve from the chart permanently. This will also clear the channel map cache from retaining the
@@ -521,7 +577,7 @@ class PyDMChartingDisplay(Display):
             del self.channel_map[pv_name]
             self.chart.removeLegendItem(pv_name)
 
-            widgets = self.findChildren((QCheckBox, QPushButton), pv_name)
+            widgets = self.findChildren((QCheckBox, QLabel, QPushButton, QGroupBox), pv_name)
             for w in widgets:
                 w.deleteLater()
 
@@ -588,7 +644,8 @@ class PyDMChartingDisplay(Display):
             if new_buffer_size and int(new_buffer_size) > MINIMUM_BUFFER_SIZE:
                 self.chart.setBufferSize(new_buffer_size)
         except ValueError:
-            display_messagchart_data_async_sampling_rate_spine_box(QMessageBox.Critical, "Invalid Values", "Only integer values are accepted.")
+            display_messagchart_data_async_sampling_rate_spine_box(QMessageBox.Critical, "Invalid Values",
+                                                                   "Only integer values are accepted.")
 
     def handle_redraw_rate_changed(self, new_redraw_rate):
         self.chart.maxRedrawRate = new_redraw_rate
@@ -756,6 +813,31 @@ class PyDMChartingDisplay(Display):
         current_label = self.chart.getBottomAxisLabel()
         current_label = current_label[:current_label.find("Current Time: ")]
         self.chart.setLabel("bottom", text=current_label + "Current Time: " + self.get_current_datetime())
+
+    def update_curve_data(self, curves):
+        for curve in curves:
+            pv_name = curve.name()
+            max_x = self.chart.getViewBox().viewRange()[1][0]
+            max_y = self.chart.getViewBox().viewRange()[1][1]
+            current_y = curve.data_buffer[1, -1]
+
+            widgets = self.findChildren((QCheckBox, QLabel), pv_name)
+            for w in widgets:
+                if np.isnan(current_y):
+                    if isinstance(w, QCheckBox):
+                        w.setChecked(False)
+                else:
+                    if isinstance(w, QCheckBox) and not w.isEnabled():
+                        w.setChecked(True)
+                    if isinstance(w, QLabel):
+                        w.clear()
+                        w.setText("(yMin = {0:.3f}, yMax = {1:.3f}) y = {2:.3f}".format(max_x, max_y, current_y))
+                        w.show()
+                w.setEnabled(not np.isnan(current_y))
+
+    def show_mouse_coordinates(self, x, y):
+        self.cross_hair_coord_lbl.clear()
+        self.cross_hair_coord_lbl.setText("x = {0:.3f}, y = {1:.3f}".format(x, y))
 
     def get_current_datetime(self):
         current_date = datetime.datetime.now().strftime("%b %d, %Y")
