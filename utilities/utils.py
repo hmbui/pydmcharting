@@ -1,12 +1,15 @@
 import random
+from pydm.PyQt.QtCore import Qt
 from pydm.PyQt.QtGui import QColor, QMessageBox
+
+
+PREDEFINED_COLORS = (Qt.red, Qt.green,  Qt.darkRed,  Qt.blue, Qt.darkGreen,  Qt.cyan,  Qt.darkBlue,  Qt.darkCyan,
+                     Qt.magenta,  Qt.darkMagenta)
 
 
 def random_color():
     """Return a random hex color description"""
-    return QColor(random.randint(50, 255),
-                  random.randint(50, 255),
-                  random.randint(50, 255))
+    return QColor(random.choice(PREDEFINED_COLORS))
 
 
 def display_message_box(icon, window_title, text):
