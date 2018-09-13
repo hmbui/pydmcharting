@@ -4,7 +4,8 @@ from pydm import Display
 from pydm.widgets.baseplot import BasePlotCurveItem
 
 from pydm.PyQt.QtCore import QSize, Qt
-from pydm.PyQt.QtGui import QFormLayout, QLabel, QComboBox, QSpinBox, QPushButton, QColorDialog, QPalette
+from pydm.PyQt.QtGui import QFormLayout, QLabel, QComboBox, QSpinBox, QPushButton, QColorDialog, QCheckBox, QPalette,\
+    QGroupBox
 
 
 class CurveSettingsDisplay(Display):
@@ -239,17 +240,15 @@ class CurveSettingsDisplay(Display):
         """
         self.close()
 
-        # Update the widget checkbox text to the current curve color
         curve = self.chart.findCurve(self.pv_name)
         if curve:
-            layout = self.main_display.curve_settings_layout
-            widget_count = layout.count()
-            for i in range(widget_count):
-                w = layout.itemAt(i).widget()
-                if w and w.objectName() == self.pv_name:
-                    palette = w.palette()
-                    palette.setColor(QPalette.Active, QPalette.WindowText, curve.color)
-                    w.setPalette(palette)
+            # Update the widget checkbox text to the current curve color
+            widgets = self.main_display.findChildren((QCheckBox, QLabel), self.pv_name)
+            for w in widgets:
+                palette = w.palette()
+                palette.setColor(QPalette.Active, QPalette.WindowText, curve.color)
+                w.setPalette(palette)
+                if isinstance(w, QCheckBox):
                     w.setText(self.pv_name.split("://")[1])
 
 
