@@ -12,7 +12,7 @@ class ChartDataExportDisplay(Display):
     def __init__(self, main_display, parent=None):
         super(ChartDataExportDisplay, self).__init__(parent=parent)
         self.main_layout = QVBoxLayout()
-        self.main_layout.setSpacing(10)
+        self.main_layout.setSpacing(5)
         self.main_display = main_display
 
         self.export_options_lbl = QLabel()
@@ -38,7 +38,7 @@ class ChartDataExportDisplay(Display):
         self.save_file_btn = QPushButton("Export...")
         self.save_file_btn.clicked.connect(self.handle_save_file_btn_clicked)
 
-        self.setFixedSize(QSize(300, 150))
+        self.setFixedSize(QSize(300, 200))
         self.setWindowTitle("Export Chart Settings")
         self.setWindowModality(Qt.ApplicationModal)
         self.setup_ui()

@@ -1,7 +1,9 @@
+from setup_paths import setup_paths
+setup_paths()
+
 import json
 
 from pydm.PyQt.Qt import QColor
-from displays import main_display
 
 
 class SettingsImporter:
@@ -87,4 +89,5 @@ class SettingsImporter:
             self.main_display.show_y_grid_chk.setChecked(chart_settings["show_y_grid"])
             self.main_display.show_y_grid_chk.clicked.emit(chart_settings["show_y_grid"])
 
-            self.main_display.grid_opacity_slr.valueChanged.emit(chart_settings["grid_alpha"] )
+            self.main_display.grid_opacity_slr.valueChanged.emit(chart_settings["grid_alpha"])
+            self.main_display.grid_opacity_slr.setValue(chart_settings["grid_alpha"])

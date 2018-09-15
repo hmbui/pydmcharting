@@ -1,3 +1,5 @@
+from setup_paths import setup_paths
+setup_paths()
 
 from collections import OrderedDict
 import json
@@ -67,7 +69,7 @@ class SettingsExporter:
                 chart.getAxisColor().name(), hex_on_fail=True))
             chart_settings["show_x_grid"] = chart.getShowXGrid()
             chart_settings["show_y_grid"] = chart.getShowYGrid()
-            chart_settings["grid_alpha"] = self.main_display.gridAlpha
+            chart_settings["grid_alpha"] = self.main_display.gridAlpha * 10.0
             settings["chart_settings"].update(chart_settings)
 
         with open(filename, 'w') as json_file:
