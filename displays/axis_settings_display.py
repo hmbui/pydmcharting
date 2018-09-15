@@ -2,9 +2,8 @@
 
 from functools import partial
 
-from pydm.PyQt.QtCore import Qt, QSize
-from pydm.PyQt.QtGui import QFormLayout, QCheckBox, QFileDialog, QLabel, QLineEdit, QPushButton
-
+from qtpy.QtCore import Qt, QSize
+from qtpy.QtWidgets import QFormLayout, QCheckBox, QFileDialog, QLabel, QLineEdit, QPushButton
 from pydm import Display
 
 

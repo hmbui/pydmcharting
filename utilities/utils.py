@@ -1,7 +1,8 @@
 import random
-from pydm.PyQt.QtCore import Qt
-from pydm.PyQt.QtGui import QColor, QMessageBox
 
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QColor
+from qtpy.QtWidgets import QMessageBox
 
 PREDEFINED_COLORS = (Qt.red, Qt.green,  Qt.darkRed,  Qt.blue, Qt.darkGreen,  Qt.cyan,  Qt.darkBlue,  Qt.darkCyan,
                      Qt.magenta,  Qt.darkMagenta)

@@ -1,7 +1,8 @@
 # The Dialog to Export Data from a Chart
 
-from pydm.PyQt.QtCore import Qt, QSize
-from pydm.PyQt.QtGui import QVBoxLayout, QCheckBox, QFileDialog, QLayout, QLabel, QComboBox, QPushButton
+from qtpy.QtCore import Qt, QSize
+from qtpy.QtWidgets import QVBoxLayout, QCheckBox, QFileDialog, QLayout, QLabel, QComboBox, QPushButton
+
 from pyqtgraph.exporters import CSVExporter
 
 from pydm import Display

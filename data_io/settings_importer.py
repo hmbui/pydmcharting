@@ -1,9 +1,9 @@
-from setup_paths import setup_paths
-setup_paths()
-
 import json
 
-from pydm.PyQt.Qt import QColor
+from qtpy.QtGui import QColor
+
+ASYNC_DATA_SAMPLING = 0
+SYNC_DATA_SAMPLING = 1
 
 
 class SettingsImporter:
@@ -41,10 +41,12 @@ class SettingsImporter:
             self.main_display.chart_redraw_rate_spin.valueChanged.emit(chart_settings["redraw_rate"])
 
             data_sampling_mode = chart_settings["data_sampling_mode"]
-            self.main_display.chart_sync_mode_sync_radio.setChecked(data_sampling_mode == main_display.SYNC_DATA_SAMPLING)
-            self.main_display.chart_sync_mode_async_radio.setChecked(data_sampling_mode == main_display.ASYNC_DATA_SAMPLING)
-            self.main_display.chart_sync_mode_async_radio.toggled.emit(data_sampling_mode ==
-                                                                       main_display.ASYNC_DATA_SAMPLING)
+            self.main_display.chart_sync_mode_sync_radio.setChecked(
+                data_sampling_mode == SYNC_DATA_SAMPLING)
+            self.main_display.chart_sync_mode_async_radio.setChecked(
+                data_sampling_mode == ASYNC_DATA_SAMPLING)
+            self.main_display.chart_sync_mode_async_radio.toggled.emit(
+                data_sampling_mode == ASYNC_DATA_SAMPLING)
 
             self.main_display.chart_data_async_sampling_rate_spin.setValue(chart_settings["update_interval_hz"])
             self.main_display.chart_data_async_sampling_rate_spin.valueChanged.emit(
