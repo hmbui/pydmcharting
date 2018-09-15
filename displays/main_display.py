@@ -4,7 +4,7 @@ from functools import partial
 import datetime
 
 import numpy as np
-import pyqtgraph
+from pyqtgraph import TextItem
 
 from pydm import Display
 from pydm.widgets.timeplot import PyDMTimePlot, DEFAULT_X_MIN
@@ -154,7 +154,7 @@ class PyDMChartingDisplay(Display):
         self.chart_change_axis_settings_btn.clicked.connect(self.handle_change_axis_settings_clicked)
 
         self.time_span_remaining_timer = QTimer(self)
-        self.time_span_remaining_timer.setInterval(1000)
+        self.time_span_remaining_timer.setInterval(1100)
         self.time_span_remaining_timer.timeout.connect(self.handle_time_span_remaining_timer_timeout)
 
         self.update_datetime_timer = QTimer(self)
@@ -497,6 +497,11 @@ class PyDMChartingDisplay(Display):
         focus_curve_btn.setMaximumWidth(100)
         focus_curve_btn.clicked.connect(partial(self.focus_curve, pv_name))
 
+        annotate_curve_btn = QPushButton("Annotate...")
+        annotate_curve_btn.setObjectName(pv_name)
+        annotate_curve_btn.setMaximumWidth(100)
+        annotate_curve_btn.clicked.connect(partial(self.annotate_curve, pv_name))
+
         remove_curve_btn = QPushButton("Remove")
         remove_curve_btn.setObjectName(pv_name)
         remove_curve_btn.setMaximumWidth(100)
@@ -504,6 +509,7 @@ class PyDMChartingDisplay(Display):
 
         curve_btn_layout.addWidget(modify_curve_btn)
         curve_btn_layout.addWidget(focus_curve_btn)
+        curve_btn_layout.addWidget(annotate_curve_btn)
         curve_btn_layout.addWidget(remove_curve_btn)
 
         individual_curve_layout = QVBoxLayout()
@@ -559,7 +565,18 @@ class PyDMChartingDisplay(Display):
         self.curve_settings_disp.show()
 
     def focus_curve(self, pv_name):
-        pass
+        curve = self.chart.findCurve(pv_name)
+        if curve:
+            self.chart.plotItem.setYRange(curve.minY, curve.maxY, padding=0)
+
+    def annotate_curve(self, pv_name):
+        curve = self.chart.findCurve(pv_name)
+        if curve:
+            annot = TextItem(html='<div style="text-align: center"><span style="color: #FFF;">This is the'
+                                  '</span><br><span style="color: #FF0; font-size: 16pt;">PEAK</span></div>',
+                             anchor=(-0.3, 0.5), border='w', fill=(0, 0, 255, 100))
+            annot = TextItem("test", anchor=(-0.3, 0.5))
+            self.chart.annotateCurve(curve, annot)
 
     def remove_curve(self, pv_name):
         """
@@ -644,8 +661,7 @@ class PyDMChartingDisplay(Display):
             if new_buffer_size and int(new_buffer_size) > MINIMUM_BUFFER_SIZE:
                 self.chart.setBufferSize(new_buffer_size)
         except ValueError:
-            display_messagchart_data_async_sampling_rate_spine_box(QMessageBox.Critical, "Invalid Values",
-                                                                   "Only integer values are accepted.")
+            display_message_box(QMessageBox.Critical, "Invalid Values", "Only integer values are accepted.")
 
     def handle_redraw_rate_changed(self, new_redraw_rate):
         self.chart.maxRedrawRate = new_redraw_rate
@@ -700,13 +716,11 @@ class PyDMChartingDisplay(Display):
 
                 self.time_span_remaining_timer.stop()
                 self.chart.resetTimeSpan()
-
                 self.chart_limit_time_span_chk.setChecked(False)
                 self.chart_limit_time_span_chk.clicked.emit(False)
                 self.chart_limit_time_span_chk.hide()
 
-                self.chart.redraw_timer.start()
-                
+                self.pause_chart_btn.setText(self.pause_chart_text)
                 self.chart.setUpdatesAsynchronously(False)
             elif radio_btn.text() == "Asynchronous":
                 self.data_sampling_mode = ASYNC_DATA_SAMPLING
@@ -714,7 +728,7 @@ class PyDMChartingDisplay(Display):
                 self.chart_data_sampling_rate_lbl.show()
                 self.chart_data_async_sampling_rate_spin.show()
                 self.chart_limit_time_span_chk.show()
-                
+
                 self.chart.setUpdatesAsynchronously(True)
         self.app.establish_widget_connections(self)
 
