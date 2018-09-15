@@ -3,9 +3,9 @@
 from pydm import Display
 from pydm.widgets.baseplot import BasePlotCurveItem
 
-from pydm.PyQt.QtCore import QSize, Qt
-from pydm.PyQt.QtGui import QFormLayout, QLabel, QComboBox, QSpinBox, QPushButton, QColorDialog, QCheckBox, QPalette,\
-    QGroupBox
+from qtpy.QtCore import Qt, QSize
+from qtpy.QtWidgets import QFormLayout, QLabel, QComboBox, QSpinBox, QPushButton, QColorDialog, QCheckBox
+from qtpy.QtGui import QPalette
 
 
 class CurveSettingsDisplay(Display):

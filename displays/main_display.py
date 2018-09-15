@@ -1,4 +1,6 @@
 # The Main Display Window
+from setup_paths import setup_paths
+setup_paths()
 
 from functools import partial
 import datetime
@@ -13,17 +15,18 @@ from data_io.settings_importer import SettingsImporter
 from pydmcharting_logging import logging
 logger = logging.getLogger(__name__)
 
-from setup_paths import setup_paths
-setup_paths()
+from qtpy.QtCore import Qt, QEvent, Slot, QSize, QTimer
+from qtpy.QtWidgets import QApplication, QWidget, QCheckBox, QHBoxLayout, QVBoxLayout, QLabel, QSplitter, QComboBox,\
+    QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, QColorDialog, QGroupBox, QRadioButton, QMessageBox,\
+    QFileDialog, QScrollArea
+from qtpy.QtGui import QColor, QPalette
 
-from pydm.PyQt.QtGui import QApplication, QWidget, QCheckBox, QColor, QPalette, QHBoxLayout, QVBoxLayout, QLabel, \
-    QSplitter, QComboBox, QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, QColorDialog, QGroupBox, \
-    QRadioButton, QMessageBox, QFileDialog, QScrollArea
-from pydm.PyQt.QtCore import Qt, QEvent, pyqtSlot, QSize, QTimer
 from displays.curve_settings_display import CurveSettingsDisplay
 from displays.axis_settings_display import AxisSettingsDisplay
 from displays.chart_data_export_display import ChartDataExportDisplay
 from utilities.utils import random_color, display_message_box
+from data_io.settings_importer import ASYNC_DATA_SAMPLING, SYNC_DATA_SAMPLING
+
 
 MINIMUM_BUFFER_SIZE = 1200
 MAXIMUM_BUFER_SIZE = 65535
@@ -39,9 +42,6 @@ DEFAULT_DATA_SAMPLING_RATE_HZ = 10
 
 DEFAULT_CHART_BACKGROUND_COLOR = QColor("black")
 DEFAULT_CHART_AXIS_COLOR = QColor("white")
-
-ASYNC_DATA_SAMPLING = 0
-SYNC_DATA_SAMPLING = 1
 
 IMPORT_FILE_FORMAT = "json"
 
@@ -750,7 +750,7 @@ class PyDMChartingDisplay(Display):
         self.chart.getViewBox().setXRange(DEFAULT_X_MIN, 0)
         self.chart.resetAutoRangeY()
 
-    @pyqtSlot()
+    @Slot()
     def handle_reset_chart_settings_btn_clicked(self):
         self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
 
