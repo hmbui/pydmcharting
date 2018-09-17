@@ -40,9 +40,9 @@ class AxisSettingsDisplay(Display):
         self.y_axis_unit_edt.textChanged.connect(partial(self.handle_axis_label_change, "left", is_unit=True))
 
         self.display_right_y_axis_chk = QCheckBox(text="Display the right y-axis")
-        self.display_right_y_axis_chk.setChecked(self.chart.showRightAxis)
+        self.display_right_y_axis_chk.setChecked(self.chart.getShowRightAxis())
         self.display_right_y_axis_chk.clicked.connect(self.handle_right_y_axis_checkbox_changed)
-        self.display_right_y_axis_chk.setChecked(self.chart.showRightAxis)
+        self.display_right_y_axis_chk.setChecked(self.chart.getShowRightAxis())
 
         self.right_y_axis_lbl = None
         self.right_y_axis_unit_edt = None
@@ -77,11 +77,11 @@ class AxisSettingsDisplay(Display):
 
         self.setLayout(self.main_layout)
 
-        if self.chart.showRightAxis:
+        if self.chart.getShowRightAxis():
             self.display_right_y_axis_chk.clicked.emit(True)
 
     def handle_right_y_axis_checkbox_changed(self, is_checked):
-        self.chart.showRightAxis = is_checked
+        self.chart.setShowRightAxis(is_checked)
 
         # Remove the Close button first
         self.main_layout.removeRow(self.main_layout.rowCount() - 1)

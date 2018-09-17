@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 from qtpy.QtCore import Qt, QEvent, Slot, QSize, QTimer
 from qtpy.QtWidgets import QApplication, QWidget, QCheckBox, QHBoxLayout, QVBoxLayout, QLabel, QSplitter, QComboBox,\
     QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, QColorDialog, QGroupBox, QRadioButton, QMessageBox,\
-    QFileDialog, QScrollArea
+    QFileDialog, QScrollArea, QFrame, QSizePolicy, QLayout
 from qtpy.QtGui import QColor, QPalette
 
 from displays.curve_settings_display import CurveSettingsDisplay
@@ -42,6 +42,8 @@ DEFAULT_DATA_SAMPLING_RATE_HZ = 10
 
 DEFAULT_CHART_BACKGROUND_COLOR = QColor("black")
 DEFAULT_CHART_AXIS_COLOR = QColor("white")
+
+MAX_DISPLAY_PV_NAME_LENGTH = 40
 
 IMPORT_FILE_FORMAT = "json"
 
@@ -80,19 +82,20 @@ class PyDMChartingDisplay(Display):
         self.pv_connect_push_btn.clicked.connect(self.add_curve)
 
         self.tab_panel = QTabWidget()
-        self.tab_panel.setMaximumWidth(600)
+        self.tab_panel.setMaximumWidth(450)
         self.curve_settings_tab = QWidget()
         self.chart_settings_tab = QWidget()
 
         self.charting_layout = QHBoxLayout()
-        self.chart = PyDMTimePlot(plot_by_timestamps=False, timeplot_display=self)
+        self.chart = PyDMTimePlot(plot_by_timestamps=False, plot_display=self)
         self.chart.setPlotTitle("Time Plot")
 
         self.splitter = QSplitter()
 
         self.curve_settings_layout = QVBoxLayout()
         self.curve_settings_layout.setAlignment(Qt.AlignTop)
-        self.curve_settings_layout.setSpacing(3)
+        self.curve_settings_layout.setSizeConstraint(QLayout.SetMinAndMaxSize)
+        self.curve_settings_layout.setSpacing(5)
 
         self.crosshair_settings_layout = QVBoxLayout()
         self.crosshair_settings_layout.setAlignment(Qt.AlignTop)
@@ -101,26 +104,29 @@ class PyDMChartingDisplay(Display):
         self.enable_crosshair_chk = QCheckBox("Enable Crosshair")
         self.cross_hair_coord_lbl = QLabel()
 
-        self.all_curves_scroll = QScrollArea()
-        self.all_curves_scroll.setWidgetResizable(True)
-        self.all_curves_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        #self.all_curves_grpbx.setFixedSize(600, 600)
-        #self.all_curves_scroll.setWidget(self.curve_settings_tab)
+        self.curve_settings_inner_frame = QFrame()
+        self.curve_settings_inner_frame.setLayout(self.curve_settings_layout)
+
+        self.curve_settings_scroll = QScrollArea()
+        self.curve_settings_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.curve_settings_scroll.setWidget(self.curve_settings_inner_frame)
+
+        self.curves_tab_layout = QHBoxLayout()
+        self.curves_tab_layout.addWidget(self.curve_settings_scroll)
 
         self.enable_crosshair_chk.setChecked(False)
         self.enable_crosshair_chk.clicked.connect(self.handle_enable_crosshair_checkbox_clicked)
         self.enable_crosshair_chk.clicked.emit(False)
 
         self.chart_settings_layout = QVBoxLayout()
-        self.chart_settings_layout.setAlignment(Qt.AlignHCenter)
-        self.chart_settings_layout.setSpacing(10)
+        self.chart_settings_layout.setSpacing(5)
 
         self.chart_layout = QVBoxLayout()
         self.chart_panel = QWidget()
 
         self.chart_control_layout = QHBoxLayout()
         self.chart_control_layout.setAlignment(Qt.AlignHCenter)
-        self.chart_control_layout.setSpacing(30)
+        self.chart_control_layout.setSpacing(10)
 
         self.view_all_btn = QPushButton("View All")
         self.view_all_btn.clicked.connect(self.handle_view_all_button_clicked)
@@ -152,10 +158,6 @@ class PyDMChartingDisplay(Display):
 
         self.chart_change_axis_settings_btn = QPushButton(text="Change Axis Settings...")
         self.chart_change_axis_settings_btn.clicked.connect(self.handle_change_axis_settings_clicked)
-
-        self.time_span_remaining_timer = QTimer(self)
-        self.time_span_remaining_timer.setInterval(1100)
-        self.time_span_remaining_timer.timeout.connect(self.handle_time_span_remaining_timer_timeout)
 
         self.update_datetime_timer = QTimer(self)
         self.update_datetime_timer.timeout.connect(self.handle_update_datetime_timer_timeout)
@@ -201,6 +203,9 @@ class PyDMChartingDisplay(Display):
         self.chart_ring_buffer_size_edt.textChanged.connect(self.handle_buffer_size_changed)
         self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
 
+        self.graph_settings_layout = QVBoxLayout()
+        self.graph_settings_layout.setSpacing(5)
+
         self.show_legend_chk = QCheckBox("Show Legend")
         self.show_legend_chk.setChecked(self.chart.showLegend)
         self.show_legend_chk.clicked.connect(self.handle_show_legend_checkbox_clicked)
@@ -208,14 +213,17 @@ class PyDMChartingDisplay(Display):
         self.background_color_lbl = QLabel("Graph Background Color ")
         self.background_color_btn = QPushButton()
         self.background_color_btn.setStyleSheet("background-color: " + self.chart.getBackgroundColor().name())
-        self.background_color_btn.setContentsMargins(20, 0, 0, 0)
+        self.background_color_btn.setContentsMargins(10, 0, 5, 5)
         self.background_color_btn.setMaximumWidth(20)
         self.background_color_btn.clicked.connect(self.handle_background_color_button_clicked)
 
-        self.axis_color_lbl = QLabel("Axis Color ")
+        self.axis_settings_layout = QVBoxLayout()
+        self.axis_settings_layout.setSpacing(5)
+
+        self.axis_color_lbl = QLabel("Axis and Grid Color")
         self.axis_color_btn = QPushButton()
         self.axis_color_btn.setStyleSheet("background-color: " + self.chart.getAxisColor().name())
-        self.axis_color_btn.setContentsMargins(20, 0, 0, 0)
+        self.axis_color_btn.setContentsMargins(10, 0, 5, 5)
         self.axis_color_btn.setMaximumWidth(20)
         self.axis_color_btn.clicked.connect(self.handle_axis_color_button_clicked)
 
@@ -259,7 +267,7 @@ class PyDMChartingDisplay(Display):
         """
         The minimum recommended size of the main window.
         """
-        return QSize(1200, 800)
+        return QSize(1500, 800)
 
     def ui_filepath(self):
         """
@@ -279,11 +287,8 @@ class PyDMChartingDisplay(Display):
         self.pv_layout.addWidget(self.pv_connect_push_btn)
         QTimer.singleShot(0, self.pv_name_line_edt.setFocus)
 
-        self.curve_settings_tab.layout = self.curve_settings_layout
-        self.curve_settings_tab.setLayout(self.curve_settings_tab.layout)
-
-        self.chart_settings_tab.layout = self.chart_settings_layout
-        self.chart_settings_tab.setLayout(self.chart_settings_tab.layout)
+        self.curve_settings_tab.setLayout(self.curves_tab_layout)
+        self.chart_settings_tab.setLayout(self.chart_settings_layout)
         self.setup_chart_settings_layout()
 
         self.tab_panel.addTab(self.curve_settings_tab, "Curves")
@@ -301,7 +306,7 @@ class PyDMChartingDisplay(Display):
         self.chart_control_layout.addWidget(self.import_data_btn)
         self.chart_control_layout.addWidget(self.export_data_btn)
 
-        self.chart_control_layout.setStretch(4, 25)
+        self.chart_control_layout.setStretch(4, 15)
         self.chart_control_layout.insertSpacing(5, 350)
 
         self.chart_layout.addWidget(self.chart)
@@ -311,6 +316,8 @@ class PyDMChartingDisplay(Display):
 
         self.splitter.addWidget(self.chart_panel)
         self.splitter.addWidget(self.tab_panel)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
 
         self.charting_layout.addWidget(self.splitter)
 
@@ -369,18 +376,26 @@ class PyDMChartingDisplay(Display):
         self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_lbl)
         self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_edt)
 
-        self.chart_settings_layout.addWidget(self.show_legend_chk)
 
-        self.chart_settings_layout.addWidget(self.background_color_lbl)
-        self.chart_settings_layout.addWidget(self.background_color_btn)
+        self.graph_settings_layout.addWidget(self.show_legend_chk)
+        self.graph_settings_layout.addWidget(self.background_color_lbl)
+        self.graph_settings_layout.addWidget(self.background_color_btn)
 
-        self.chart_settings_layout.addWidget(self.axis_color_lbl)
-        self.chart_settings_layout.addWidget(self.axis_color_btn)
+        self.graph_settings_grpbx = QGroupBox()
+        self.graph_settings_grpbx.setLayout(self.graph_settings_layout)
 
-        self.chart_settings_layout.addWidget(self.show_x_grid_chk)
-        self.chart_settings_layout.addWidget(self.show_y_grid_chk)
-        self.chart_settings_layout.addWidget(self.grid_opacity_lbl)
-        self.chart_settings_layout.addWidget(self.grid_opacity_slr)
+        self.axis_settings_layout.addWidget(self.axis_color_lbl)
+        self.axis_settings_layout.addWidget(self.axis_color_btn)
+        self.axis_settings_layout.addWidget(self.show_x_grid_chk)
+        self.axis_settings_layout.addWidget(self.show_y_grid_chk)
+        self.axis_settings_layout.addWidget(self.grid_opacity_lbl)
+        self.axis_settings_layout.addWidget(self.grid_opacity_slr)
+
+        self.axis_settings_grpbx = QGroupBox()
+        self.axis_settings_grpbx.setLayout(self.axis_settings_layout)
+
+        self.chart_settings_layout.addWidget(self.graph_settings_grpbx)
+        self.chart_settings_layout.addWidget(self.axis_settings_grpbx)
         self.chart_settings_layout.addWidget(self.reset_chart_settings_btn)
 
         self.chart_sync_mode_async_radio.toggled.emit(True)
@@ -472,9 +487,15 @@ class PyDMChartingDisplay(Display):
 
         palette = checkbox.palette()
         palette.setColor(QPalette.Active, QPalette.WindowText, curve_color)
-
         checkbox.setPalette(palette)
-        checkbox.setText(pv_name.split("://")[1])
+
+        display_name = pv_name.split("://")[1]
+        if len(display_name) > MAX_DISPLAY_PV_NAME_LENGTH:
+            # Only display max allowed number of characters of the PV Name
+            display_name = display_name[:int(MAX_DISPLAY_PV_NAME_LENGTH / 2) - 1] + "..." + \
+                           display_name[-int(MAX_DISPLAY_PV_NAME_LENGTH / 2) + 2:]
+
+        checkbox.setText(display_name)
 
         data_text = QLabel()
         data_text.setObjectName(pv_name)
@@ -517,7 +538,11 @@ class PyDMChartingDisplay(Display):
         individual_curve_layout.addWidget(data_text)
         individual_curve_layout.addLayout(curve_btn_layout)
 
+        size_policy = QSizePolicy()
+        size_policy.setVerticalPolicy(QSizePolicy.Fixed)
         individual_curve_grpbx = QGroupBox()
+        individual_curve_grpbx.setSizePolicy(size_policy)
+
         individual_curve_grpbx.setObjectName(pv_name)
         individual_curve_grpbx.setLayout(individual_curve_layout)
 
@@ -644,17 +669,10 @@ class PyDMChartingDisplay(Display):
             display_message_box(QMessageBox.Critical, "Invalid Values",
                                 "Hours, minutes, and seconds expect only integer values.")
         else:
-            self.chart_limit_time_span_chk.setText(
-                self.limit_time_plan_text + " (" + str( self.time_span_limit_hours) + " hours : " +
-                str(self.time_span_limit_minutes) + " minutes : " + str(self.time_span_limit_seconds) + " seconds)")
             timeout_milliseconds = (self.time_span_limit_hours * 3600 + self.time_span_limit_minutes * 60 +
                                     self.time_span_limit_seconds) * 1000
-            self.chart.setContinuationTimer(timeout_milliseconds)
-
-            self.chart.setTimeSpan(timeout_milliseconds / 1000)
+            self.chart.setTimeSpan(timeout_milliseconds / 1000.0)
             self.chart_ring_buffer_size_edt.setText(str(self.chart.getBufferSize()))
-
-            self.time_span_remaining_timer.start()
 
     def handle_buffer_size_changed(self, new_buffer_size):
         try:
@@ -714,7 +732,6 @@ class PyDMChartingDisplay(Display):
                 self.chart_data_sampling_rate_lbl.hide()
                 self.chart_data_async_sampling_rate_spin.hide()
 
-                self.time_span_remaining_timer.stop()
                 self.chart.resetTimeSpan()
                 self.chart_limit_time_span_chk.setChecked(False)
                 self.chart_limit_time_span_chk.clicked.emit(False)
@@ -786,21 +803,6 @@ class PyDMChartingDisplay(Display):
         self.chart.setShowXGrid(False)
         self.chart.setShowYGrid(False)
         self.chart.setShowLegend(False)
-
-    def handle_time_span_remaining_timer_timeout(self):
-        seconds = 0
-        minutes = 0
-        hours = 0
-
-        remaining_time_ms = self.chart.getRemainingDrawingTime()
-        if remaining_time_ms <= 0:
-            self.time_span_remaining_timer.stop()
-        else:
-            seconds = int((remaining_time_ms / 1000) % 60)
-            minutes = int((remaining_time_ms / (1000 * 60)) % 60)
-            hours = int((remaining_time_ms / (1000 * 60 * 60)))
-        self.chart_limit_time_span_chk.setText(self.limit_time_plan_text + " (" + str(hours) + " hours : " +
-                                               str(minutes) + " minutes : " + str(seconds) + " seconds)")
 
     def enable_chart_control_buttons(self, enabled=True):
         self.auto_scale_btn.setEnabled(enabled)
