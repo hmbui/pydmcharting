@@ -828,39 +828,38 @@ class PyDMChartingDisplay(Display):
         current_label = current_label[:current_label.find("Current Time: ")]
         self.chart.setLabel("bottom", text=current_label + "Current Time: " + self.get_current_datetime())
 
-    def update_curve_data(self, curves):
+    def update_curve_data(self, curve):
         """
         Determine if the PV is active. If not, disable the related PV controls. If the PV is active, update the PV
         controls' states.
 
         Parameters
         ----------
-        curves : list
-            A list of the current PVs being added to the chart.
+        curve : PlotItem
+           A PlotItem, i.e. a plot, to draw on the chart.
         """
-        for curve in curves:
-            pv_name = curve.name()
-            max_x = self.chart.getViewBox().viewRange()[1][0]
-            max_y = self.chart.getViewBox().viewRange()[1][1]
-            current_y = curve.data_buffer[1, -1]
+        pv_name = curve.name()
+        max_x = self.chart.getViewBox().viewRange()[1][0]
+        max_y = self.chart.getViewBox().viewRange()[1][1]
+        current_y = curve.data_buffer[1, -1]
 
-            widgets = self.findChildren((QCheckBox, QLabel, QPushButton), pv_name)
-            for w in widgets:
-                if np.isnan(current_y):
-                    if isinstance(w, QCheckBox):
-                        w.setChecked(False)
-                else:
-                    if isinstance(w, QCheckBox) and not w.isEnabled():
-                        w.setChecked(True)
-                    if isinstance(w, QLabel):
-                        w.clear()
-                        w.setText("(yMin = {0:.3f}, yMax = {1:.3f}) y = {2:.3f}".format(max_x, max_y, current_y))
-                        w.show()
-                w.setEnabled(not np.isnan(current_y))
+        widgets = self.findChildren((QCheckBox, QLabel, QPushButton), pv_name)
+        for w in widgets:
+            if np.isnan(current_y):
+                if isinstance(w, QCheckBox):
+                    w.setChecked(False)
+            else:
+                if isinstance(w, QCheckBox) and not w.isEnabled():
+                    w.setChecked(True)
+                if isinstance(w, QLabel):
+                    w.clear()
+                    w.setText("(yMin = {0:.3f}, yMax = {1:.3f}) y = {2:.3f}".format(max_x, max_y, current_y))
+                    w.show()
+            w.setEnabled(not np.isnan(current_y))
 
-                if isinstance(w, QPushButton) and w.text() == "Remove":
-                    # Enablet the Remove button to make removing inactive PVs possible anytime
-                    w.setEnabled(True)
+            if isinstance(w, QPushButton) and w.text() == "Remove":
+                # Enablet the Remove button to make removing inactive PVs possible anytime
+                w.setEnabled(True)
 
     def show_mouse_coordinates(self, x, y):
         self.cross_hair_coord_lbl.clear()
