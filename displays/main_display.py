@@ -119,7 +119,6 @@ class PyDMChartingDisplay(Display):
         self.enable_crosshair_chk.clicked.emit(False)
 
         self.chart_settings_layout = QVBoxLayout()
-        self.chart_settings_layout.setSpacing(5)
 
         self.chart_layout = QVBoxLayout()
         self.chart_panel = QWidget()
@@ -145,6 +144,11 @@ class PyDMChartingDisplay(Display):
         self.pause_chart_btn = QPushButton(self.pause_chart_text)
         self.pause_chart_btn.clicked.connect(self.handle_pause_chart_btn_clicked)
 
+        self.title_settings_layout = QVBoxLayout()
+        self.title_settings_layout.setSpacing(10)
+
+        self.title_settings_grpbx = QGroupBox()
+
         self.import_data_btn = QPushButton("Import Data...")
         self.import_data_btn.clicked.connect(self.handle_import_data_btn_clicked)
 
@@ -162,22 +166,21 @@ class PyDMChartingDisplay(Display):
         self.update_datetime_timer = QTimer(self)
         self.update_datetime_timer.timeout.connect(self.handle_update_datetime_timer_timeout)
 
-        self.chart_limit_time_span_layout = QHBoxLayout()
-        self.chart_limit_time_span_layout.setSpacing(5)
-
-        self.chart_redraw_rate_lbl = QLabel("Redraw Rate (Hz)")
-        self.chart_redraw_rate_spin = QSpinBox()
-        self.chart_redraw_rate_spin.setRange(MIN_REDRAW_RATE_HZ, MAX_REDRAW_RATE_HZ)
-        self.chart_redraw_rate_spin.setValue(DEFAULT_REDRAW_RATE_HZ)
-        self.chart_redraw_rate_spin.valueChanged.connect(self.handle_redraw_rate_changed)
+        self.chart_sync_mode_layout = QVBoxLayout()
+        self.chart_sync_mode_layout.setSpacing(10)
 
         self.chart_sync_mode_grpbx = QGroupBox("Data Sampling Mode")
         self.chart_sync_mode_sync_radio = QRadioButton("Synchronous")
         self.chart_sync_mode_async_radio = QRadioButton("Asynchronous")
         self.chart_sync_mode_async_radio.setChecked(True)
 
-        self.chart_sync_mode_layout = QVBoxLayout()
-        self.chart_sync_mode_layout.setSpacing(5)
+        self.graph_drawing_settings_layout = QVBoxLayout()
+
+        self.chart_redraw_rate_lbl = QLabel("Redraw Rate (Hz)")
+        self.chart_redraw_rate_spin = QSpinBox()
+        self.chart_redraw_rate_spin.setRange(MIN_REDRAW_RATE_HZ, MAX_REDRAW_RATE_HZ)
+        self.chart_redraw_rate_spin.setValue(DEFAULT_REDRAW_RATE_HZ)
+        self.chart_redraw_rate_spin.valueChanged.connect(self.handle_redraw_rate_changed)
 
         self.chart_data_sampling_rate_lbl = QLabel("Asynchronous Data Sampling Rate (Hz)")
         self.chart_data_async_sampling_rate_spin = QSpinBox()
@@ -186,6 +189,9 @@ class PyDMChartingDisplay(Display):
         self.chart_data_async_sampling_rate_spin.valueChanged.connect(self.handle_data_sampling_rate_changed)
         self.chart_data_sampling_rate_lbl.hide()
         self.chart_data_async_sampling_rate_spin.hide()
+
+        self.chart_limit_time_span_layout = QHBoxLayout()
+        self.chart_limit_time_span_layout.setSpacing(5)
 
         self.limit_time_plan_text = "Limit Time Span"
         self.chart_limit_time_span_chk = QCheckBox(self.limit_time_plan_text)
@@ -203,9 +209,6 @@ class PyDMChartingDisplay(Display):
         self.chart_ring_buffer_size_edt.textChanged.connect(self.handle_buffer_size_changed)
         self.chart_ring_buffer_size_edt.setText(str(DEFAULT_BUFFER_SIZE))
 
-        self.graph_settings_layout = QVBoxLayout()
-        self.graph_settings_layout.setSpacing(5)
-
         self.show_legend_chk = QCheckBox("Show Legend")
         self.show_legend_chk.setChecked(self.chart.showLegend)
         self.show_legend_chk.clicked.connect(self.handle_show_legend_checkbox_clicked)
@@ -222,7 +225,7 @@ class PyDMChartingDisplay(Display):
 
         self.axis_color_lbl = QLabel("Axis and Grid Color")
         self.axis_color_btn = QPushButton()
-        self.axis_color_btn.setStyleSheet("background-color: " + self.chart.getAxisColor().name())
+        self.axis_color_btn.setStyleSheet("background-color: " + DEFAULT_CHART_AXIS_COLOR.name())
         self.axis_color_btn.setContentsMargins(10, 0, 5, 5)
         self.axis_color_btn.setMaximumWidth(20)
         self.axis_color_btn.clicked.connect(self.handle_axis_color_button_clicked)
@@ -250,6 +253,9 @@ class PyDMChartingDisplay(Display):
 
         self.curve_checkbox_panel = QWidget()
 
+        self.graph_drawing_settings_grpbx = QGroupBox()
+        self.axis_settings_grpbx = QGroupBox()
+
         self.app = QApplication.instance()
         self.setup_ui()
 
@@ -267,7 +273,7 @@ class PyDMChartingDisplay(Display):
         """
         The minimum recommended size of the main window.
         """
-        return QSize(1500, 800)
+        return QSize(1500, 850)
 
     def ui_filepath(self):
         """
@@ -329,9 +335,24 @@ class PyDMChartingDisplay(Display):
         self.enable_chart_control_buttons(False)
 
     def setup_chart_settings_layout(self):
-        self.chart_settings_layout.addWidget(self.chart_title_lbl)
-        self.chart_settings_layout.addWidget(self.chart_title_line_edt)
-        self.chart_settings_layout.addWidget(self.chart_change_axis_settings_btn)
+        self.chart_sync_mode_sync_radio.toggled.connect(partial(self.handle_sync_mode_radio_toggle,
+                                                                self.chart_sync_mode_sync_radio))
+        self.chart_sync_mode_async_radio.toggled.connect(partial(self.handle_sync_mode_radio_toggle,
+                                                                 self.chart_sync_mode_async_radio))
+
+        self.title_settings_layout.addWidget(self.chart_title_lbl)
+        self.title_settings_layout.addWidget(self.chart_title_line_edt)
+        self.title_settings_layout.addWidget(self.show_legend_chk)
+        self.title_settings_layout.addWidget(self.chart_change_axis_settings_btn)
+        self.title_settings_grpbx.setLayout(self.title_settings_layout)
+        self.chart_settings_layout.addWidget(self.title_settings_grpbx)
+
+        self.chart_sync_mode_layout.addWidget(self.chart_sync_mode_sync_radio)
+        self.chart_sync_mode_layout.addWidget(self.chart_sync_mode_async_radio)
+        self.chart_sync_mode_grpbx.setLayout(self.chart_sync_mode_layout)
+        self.chart_settings_layout.addWidget(self.chart_sync_mode_grpbx)
+
+        self.chart_settings_layout.addWidget(self.chart_sync_mode_grpbx)
 
         self.chart_limit_time_span_layout.addWidget(self.chart_limit_time_span_lbl)
         self.chart_limit_time_span_layout.addWidget(self.chart_limit_time_span_hours_line_edt)
@@ -354,35 +375,17 @@ class PyDMChartingDisplay(Display):
         self.chart_limit_time_span_activate_btn.clicked.connect(self.handle_chart_limit_time_span_activate_btn_clicked)
         self.chart_limit_time_span_activate_btn.installEventFilter(self)
 
-        self.chart_settings_layout.addWidget(self.chart_redraw_rate_lbl)
-        self.chart_settings_layout.addWidget(self.chart_redraw_rate_spin)
-
-        self.chart_sync_mode_sync_radio.toggled.connect(partial(self.handle_sync_mode_radio_toggle,
-                                                                self.chart_sync_mode_sync_radio))
-        self.chart_sync_mode_async_radio.toggled.connect(partial(self.handle_sync_mode_radio_toggle,
-                                                                 self.chart_sync_mode_async_radio))
-
-        self.chart_sync_mode_layout.addWidget(self.chart_sync_mode_sync_radio)
-        self.chart_sync_mode_layout.addWidget(self.chart_sync_mode_async_radio)
-        self.chart_sync_mode_grpbx.setLayout(self.chart_sync_mode_layout)
-        self.chart_settings_layout.addWidget(self.chart_sync_mode_grpbx)
-
-        self.chart_settings_layout.addWidget(self.chart_data_sampling_rate_lbl)
-        self.chart_settings_layout.addWidget(self.chart_data_async_sampling_rate_spin)
-
-        self.chart_settings_layout.addWidget(self.chart_limit_time_span_chk)
-        self.chart_settings_layout.addLayout(self.chart_limit_time_span_layout)
-
-        self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_lbl)
-        self.chart_settings_layout.addWidget(self.chart_ring_buffer_size_edt)
-
-
-        self.graph_settings_layout.addWidget(self.show_legend_chk)
-        self.graph_settings_layout.addWidget(self.background_color_lbl)
-        self.graph_settings_layout.addWidget(self.background_color_btn)
-
-        self.graph_settings_grpbx = QGroupBox()
-        self.graph_settings_grpbx.setLayout(self.graph_settings_layout)
+        self.graph_drawing_settings_layout.addWidget(self.background_color_lbl)
+        self.graph_drawing_settings_layout.addWidget(self.background_color_btn)
+        self.graph_drawing_settings_layout.addWidget(self.chart_redraw_rate_lbl)
+        self.graph_drawing_settings_layout.addWidget(self.chart_redraw_rate_spin)
+        self.graph_drawing_settings_layout.addWidget(self.chart_data_sampling_rate_lbl)
+        self.graph_drawing_settings_layout.addWidget(self.chart_data_async_sampling_rate_spin)
+        self.graph_drawing_settings_layout.addWidget(self.chart_limit_time_span_chk)
+        self.graph_drawing_settings_layout.addLayout(self.chart_limit_time_span_layout)
+        self.graph_drawing_settings_layout.addWidget(self.chart_ring_buffer_size_lbl)
+        self.graph_drawing_settings_layout.addWidget(self.chart_ring_buffer_size_edt)
+        self.graph_drawing_settings_grpbx.setLayout(self.graph_drawing_settings_layout)
 
         self.axis_settings_layout.addWidget(self.axis_color_lbl)
         self.axis_settings_layout.addWidget(self.axis_color_btn)
@@ -390,11 +393,9 @@ class PyDMChartingDisplay(Display):
         self.axis_settings_layout.addWidget(self.show_y_grid_chk)
         self.axis_settings_layout.addWidget(self.grid_opacity_lbl)
         self.axis_settings_layout.addWidget(self.grid_opacity_slr)
-
-        self.axis_settings_grpbx = QGroupBox()
         self.axis_settings_grpbx.setLayout(self.axis_settings_layout)
 
-        self.chart_settings_layout.addWidget(self.graph_settings_grpbx)
+        self.chart_settings_layout.addWidget(self.graph_drawing_settings_grpbx)
         self.chart_settings_layout.addWidget(self.axis_settings_grpbx)
         self.chart_settings_layout.addWidget(self.reset_chart_settings_btn)
 
@@ -455,7 +456,7 @@ class PyDMChartingDisplay(Display):
     def add_y_channel(self, pv_name, curve_name, color, line_style=Qt.SolidLine, line_width=2, symbol=None,
                       symbol_size=None):
         if pv_name in self.channel_map:
-            logger.error("'{0}' has already been plotted.".format(pv_name))
+            logger.error("'{0}' has already been added.".format(pv_name))
             return
 
         curve = self.chart.addYChannel(y_channel=pv_name, name=curve_name, color=color, lineStyle=line_style,
@@ -499,9 +500,7 @@ class PyDMChartingDisplay(Display):
 
         data_text = QLabel()
         data_text.setObjectName(pv_name)
-
         data_text.setPalette(palette)
-        data_text.hide()
 
         checkbox.setChecked(True)
         checkbox.clicked.connect(partial(self.handle_curve_chkbox_toggled, checkbox))
@@ -645,7 +644,6 @@ class PyDMChartingDisplay(Display):
 
         if not is_checked:
             self.chart_limit_time_span_chk.setText(self.limit_time_plan_text)
-            self.chart.setContinuationTimer(-1)
 
     def handle_time_span_edt_text_changed(self, new_text):
         try:
@@ -786,7 +784,7 @@ class PyDMChartingDisplay(Display):
         self.chart.setUpdatesAsynchronously(True)
         self.chart.resetTimeSpan()
         self.chart.resetUpdateInterval()
-        self.chart.resetBufferSize()
+        self.chart.setBufferSize(DEFAULT_BUFFER_SIZE)
 
         self.chart.setBackgroundColor(DEFAULT_CHART_BACKGROUND_COLOR)
         self.background_color_btn.setStyleSheet("background-color: " + DEFAULT_CHART_BACKGROUND_COLOR.name())
@@ -831,13 +829,22 @@ class PyDMChartingDisplay(Display):
         self.chart.setLabel("bottom", text=current_label + "Current Time: " + self.get_current_datetime())
 
     def update_curve_data(self, curves):
+        """
+        Determine if the PV is active. If not, disable the related PV controls. If the PV is active, update the PV
+        controls' states.
+
+        Parameters
+        ----------
+        curves : list
+            A list of the current PVs being added to the chart.
+        """
         for curve in curves:
             pv_name = curve.name()
             max_x = self.chart.getViewBox().viewRange()[1][0]
             max_y = self.chart.getViewBox().viewRange()[1][1]
             current_y = curve.data_buffer[1, -1]
 
-            widgets = self.findChildren((QCheckBox, QLabel), pv_name)
+            widgets = self.findChildren((QCheckBox, QLabel, QPushButton), pv_name)
             for w in widgets:
                 if np.isnan(current_y):
                     if isinstance(w, QCheckBox):
@@ -850,6 +857,10 @@ class PyDMChartingDisplay(Display):
                         w.setText("(yMin = {0:.3f}, yMax = {1:.3f}) y = {2:.3f}".format(max_x, max_y, current_y))
                         w.show()
                 w.setEnabled(not np.isnan(current_y))
+
+                if isinstance(w, QPushButton) and w.text() == "Remove":
+                    # Enablet the Remove button to make removing inactive PVs possible anytime
+                    w.setEnabled(True)
 
     def show_mouse_coordinates(self, x, y):
         self.cross_hair_coord_lbl.clear()
