@@ -66,6 +66,13 @@ class CurveSettingsDisplay(Display):
         # No UI file is being used
         return None
 
+    def ui_filename(self):
+        """
+        The name of the UI file created by Qt Designer, if applicable.
+        """
+        # No UI file is being used
+        return None
+
     def setup_ui(self):
         """
         Initialize the widgets and layouts.

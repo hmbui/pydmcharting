@@ -68,6 +68,13 @@ class AxisSettingsDisplay(Display):
         # No UI file is being used
         return None
 
+    def ui_filename(self):
+        """
+        The name of the UI file created by Qt Designer, if applicable.
+        """
+        # No UI file is being used
+        return None
+
     def setup_ui(self):
         # Add widgets to the form layout
         self.main_layout.setSpacing(10)
