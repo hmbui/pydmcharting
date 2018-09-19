@@ -6,7 +6,7 @@ from functools import partial
 import datetime
 
 import numpy as np
-from pyqtgraph import TextItem
+from pyqtgraph import TextItem, ViewBox
 
 from pydm import Display
 from pydm.widgets.timeplot import PyDMTimePlot, DEFAULT_X_MIN
@@ -119,6 +119,7 @@ class PyDMChartingDisplay(Display):
         self.enable_crosshair_chk.clicked.emit(False)
 
         self.chart_settings_layout = QVBoxLayout()
+        self.chart_settings_layout.setAlignment(Qt.AlignTop)
 
         self.chart_layout = QVBoxLayout()
         self.chart_panel = QWidget()
@@ -148,6 +149,7 @@ class PyDMChartingDisplay(Display):
         self.title_settings_layout.setSpacing(10)
 
         self.title_settings_grpbx = QGroupBox()
+        self.title_settings_grpbx.setFixedHeight(150)
 
         self.import_data_btn = QPushButton("Import Data...")
         self.import_data_btn.clicked.connect(self.handle_import_data_btn_clicked)
@@ -170,6 +172,8 @@ class PyDMChartingDisplay(Display):
         self.chart_sync_mode_layout.setSpacing(10)
 
         self.chart_sync_mode_grpbx = QGroupBox("Data Sampling Mode")
+        self.chart_sync_mode_grpbx.setFixedHeight(100)
+
         self.chart_sync_mode_sync_radio = QRadioButton("Synchronous")
         self.chart_sync_mode_async_radio = QRadioButton("Asynchronous")
         self.chart_sync_mode_async_radio.setChecked(True)
@@ -223,13 +227,6 @@ class PyDMChartingDisplay(Display):
         self.axis_settings_layout = QVBoxLayout()
         self.axis_settings_layout.setSpacing(5)
 
-        self.axis_color_lbl = QLabel("Axis and Grid Color")
-        self.axis_color_btn = QPushButton()
-        self.axis_color_btn.setStyleSheet("background-color: " + DEFAULT_CHART_AXIS_COLOR.name())
-        self.axis_color_btn.setContentsMargins(10, 0, 5, 5)
-        self.axis_color_btn.setMaximumWidth(20)
-        self.axis_color_btn.clicked.connect(self.handle_axis_color_button_clicked)
-
         self.show_x_grid_chk = QCheckBox("Show x Grid")
         self.show_x_grid_chk.setChecked(self.chart.showXGrid)
         self.show_x_grid_chk.clicked.connect(self.handle_show_x_grid_checkbox_clicked)
@@ -238,7 +235,19 @@ class PyDMChartingDisplay(Display):
         self.show_y_grid_chk.setChecked(self.chart.showYGrid)
         self.show_y_grid_chk.clicked.connect(self.handle_show_y_grid_checkbox_clicked)
 
+        self.axis_color_lbl = QLabel("Axis and Grid Color")
+        self.axis_color_lbl.setEnabled(False)
+
+        self.axis_color_btn = QPushButton()
+        self.axis_color_btn.setStyleSheet("background-color: " + DEFAULT_CHART_AXIS_COLOR.name())
+        self.axis_color_btn.setContentsMargins(10, 0, 5, 5)
+        self.axis_color_btn.setMaximumWidth(20)
+        self.axis_color_btn.clicked.connect(self.handle_axis_color_button_clicked)
+        self.axis_color_btn.setEnabled(False)
+
         self.grid_opacity_lbl = QLabel("Grid Opacity")
+        self.grid_opacity_lbl.setEnabled(False)
+
         self.grid_opacity_slr = QSlider(Qt.Horizontal)
         self.grid_opacity_slr.setFocusPolicy(Qt.StrongFocus)
         self.grid_opacity_slr.setRange(0, 10)
@@ -247,6 +256,7 @@ class PyDMChartingDisplay(Display):
         self.grid_opacity_slr.setSingleStep(1)
         self.grid_opacity_slr.setTickPosition(QSlider.TicksBelow)
         self.grid_opacity_slr.valueChanged.connect(self.handle_grid_opacity_slider_mouse_release)
+        self.grid_opacity_slr.setEnabled(False)
 
         self.reset_chart_settings_btn = QPushButton("Reset Chart Settings")
         self.reset_chart_settings_btn.clicked.connect(self.handle_reset_chart_settings_btn_clicked)
@@ -254,7 +264,10 @@ class PyDMChartingDisplay(Display):
         self.curve_checkbox_panel = QWidget()
 
         self.graph_drawing_settings_grpbx = QGroupBox()
+        self.graph_drawing_settings_grpbx.setFixedHeight(350)
+
         self.axis_settings_grpbx = QGroupBox()
+        self.axis_settings_grpbx.setFixedHeight(200)
 
         self.app = QApplication.instance()
         self.setup_ui()
@@ -273,7 +286,7 @@ class PyDMChartingDisplay(Display):
         """
         The minimum recommended size of the main window.
         """
-        return QSize(1500, 850)
+        return QSize(1500, 950)
 
     def ui_filepath(self):
         """
@@ -387,10 +400,10 @@ class PyDMChartingDisplay(Display):
         self.graph_drawing_settings_layout.addWidget(self.chart_ring_buffer_size_edt)
         self.graph_drawing_settings_grpbx.setLayout(self.graph_drawing_settings_layout)
 
-        self.axis_settings_layout.addWidget(self.axis_color_lbl)
-        self.axis_settings_layout.addWidget(self.axis_color_btn)
         self.axis_settings_layout.addWidget(self.show_x_grid_chk)
         self.axis_settings_layout.addWidget(self.show_y_grid_chk)
+        self.axis_settings_layout.addWidget(self.axis_color_lbl)
+        self.axis_settings_layout.addWidget(self.axis_color_btn)
         self.axis_settings_layout.addWidget(self.grid_opacity_lbl)
         self.axis_settings_layout.addWidget(self.grid_opacity_slr)
         self.axis_settings_grpbx.setLayout(self.axis_settings_layout)
@@ -705,8 +718,18 @@ class PyDMChartingDisplay(Display):
     def handle_show_x_grid_checkbox_clicked(self, is_checked):
         self.chart.setShowXGrid(is_checked, self.grid_alpha)
 
+        self.axis_color_lbl.setEnabled(is_checked or self.show_y_grid_chk.isChecked())
+        self.axis_color_btn.setEnabled(is_checked or self.show_y_grid_chk.isChecked())
+        self.grid_opacity_lbl.setEnabled(is_checked or self.show_y_grid_chk.isChecked())
+        self.grid_opacity_slr.setEnabled(is_checked or self.show_y_grid_chk.isChecked())
+
     def handle_show_y_grid_checkbox_clicked(self, is_checked):
         self.chart.setShowYGrid(is_checked, self.grid_alpha)
+
+        self.axis_color_lbl.setEnabled(is_checked or self.show_x_grid_chk.isChecked())
+        self.axis_color_btn.setEnabled(is_checked or self.show_x_grid_chk.isChecked())
+        self.grid_opacity_lbl.setEnabled(is_checked or self.show_x_grid_chk.isChecked())
+        self.grid_opacity_slr.setEnabled(is_checked or self.show_x_grid_chk.isChecked())
 
     def handle_show_legend_checkbox_clicked(self, is_checked):
         self.chart.setShowLegend(is_checked)
@@ -735,7 +758,6 @@ class PyDMChartingDisplay(Display):
                 self.chart_limit_time_span_chk.clicked.emit(False)
                 self.chart_limit_time_span_chk.hide()
 
-                self.pause_chart_btn.setText(self.pause_chart_text)
                 self.chart.setUpdatesAsynchronously(False)
             elif radio_btn.text() == "Asynchronous":
                 self.data_sampling_mode = ASYNC_DATA_SAMPLING
@@ -755,8 +777,7 @@ class PyDMChartingDisplay(Display):
         self.chart.getViewBox().autoRange()
 
     def handle_pause_chart_btn_clicked(self):
-        remaining_time = self.chart.pausePlotting()
-        if remaining_time < 0:
+        if self.chart.pausePlotting():
             self.pause_chart_btn.setText(self.pause_chart_text)
         else:
             self.pause_chart_btn.setText(self.resume_chart_text)
@@ -795,7 +816,11 @@ class PyDMChartingDisplay(Display):
         self.grid_opacity_slr.setValue(5)
 
         self.show_x_grid_chk.setChecked(False)
+        self.show_x_grid_chk.clicked.emit(False)
+
         self.show_y_grid_chk.setChecked(False)
+        self.show_y_grid_chk.clicked.emit(False)
+
         self.show_legend_chk.setChecked(False)
 
         self.chart.setShowXGrid(False)
@@ -858,7 +883,7 @@ class PyDMChartingDisplay(Display):
             w.setEnabled(not np.isnan(current_y))
 
             if isinstance(w, QPushButton) and w.text() == "Remove":
-                # Enablet the Remove button to make removing inactive PVs possible anytime
+                # Enable the Remove button to make removing inactive PVs possible anytime
                 w.setEnabled(True)
 
     def show_mouse_coordinates(self, x, y):
