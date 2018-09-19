@@ -6,6 +6,8 @@ from qtpy.QtCore import Qt, QSize
 from qtpy.QtWidgets import QFormLayout, QCheckBox, QFileDialog, QLabel, QLineEdit, QPushButton
 from pydm import Display
 
+X_AXIS_LABEL_SEPARATOR = " -- "
+
 
 class AxisSettingsDisplay(Display):
     def __init__(self, main_display, parent=None):
@@ -20,7 +22,8 @@ class AxisSettingsDisplay(Display):
         self.x_axis_label_line_edt = QLineEdit()
         current_x_label = self.chart.labels["bottom"]
         if current_x_label:
-            current_x_label = current_x_label[:current_x_label.find(" -- Current Time: ")]
+            current_x_label = current_x_label[current_x_label.find(X_AXIS_LABEL_SEPARATOR) +
+                                              len(X_AXIS_LABEL_SEPARATOR):]
             self.x_axis_label_line_edt.setText(current_x_label)
         self.x_axis_label_line_edt.textChanged.connect(partial(self.handle_axis_label_change, "bottom"))
 
@@ -136,8 +139,10 @@ class AxisSettingsDisplay(Display):
         else:
             if axis_position == "bottom":
                 current_label = self.chart.getBottomAxisLabel()
-                current_label = current_label[current_label.find("Current Time: "):]
-                new_label += " -- " + current_label
+                if X_AXIS_LABEL_SEPARATOR in current_label:
+                    current_label = current_label[:current_label.find(X_AXIS_LABEL_SEPARATOR) -
+                                                   len(X_AXIS_LABEL_SEPARATOR)]
+                new_label = current_label + X_AXIS_LABEL_SEPARATOR + new_label
             self.chart.setLabel(axis_position, text=new_label)
             self.chart.labels[axis_position] = new_label
         return
