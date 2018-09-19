@@ -169,10 +169,10 @@ class PyDMChartingDisplay(Display):
         self.update_datetime_timer.timeout.connect(self.handle_update_datetime_timer_timeout)
 
         self.chart_sync_mode_layout = QVBoxLayout()
-        self.chart_sync_mode_layout.setSpacing(10)
+        self.chart_sync_mode_layout.setSpacing(5)
 
         self.chart_sync_mode_grpbx = QGroupBox("Data Sampling Mode")
-        self.chart_sync_mode_grpbx.setFixedHeight(100)
+        self.chart_sync_mode_grpbx.setFixedHeight(80)
 
         self.chart_sync_mode_sync_radio = QRadioButton("Synchronous")
         self.chart_sync_mode_async_radio = QRadioButton("Asynchronous")
@@ -264,10 +264,10 @@ class PyDMChartingDisplay(Display):
         self.curve_checkbox_panel = QWidget()
 
         self.graph_drawing_settings_grpbx = QGroupBox()
-        self.graph_drawing_settings_grpbx.setFixedHeight(350)
+        self.graph_drawing_settings_grpbx.setFixedHeight(300)
 
         self.axis_settings_grpbx = QGroupBox()
-        self.axis_settings_grpbx.setFixedHeight(200)
+        self.axis_settings_grpbx.setFixedHeight(180)
 
         self.app = QApplication.instance()
         self.setup_ui()
@@ -286,11 +286,18 @@ class PyDMChartingDisplay(Display):
         """
         The minimum recommended size of the main window.
         """
-        return QSize(1500, 950)
+        return QSize(1490, 900)
 
     def ui_filepath(self):
         """
         The path to the UI file created by Qt Designer, if applicable.
+        """
+        # No UI file is being used
+        return None
+
+    def ui_filename(self):
+        """
+        The name the UI file created by Qt Designer, if applicable.
         """
         # No UI file is being used
         return None
@@ -637,6 +644,7 @@ class PyDMChartingDisplay(Display):
 
         if len(self.chart.getCurves()) < 1:
             self.enable_chart_control_buttons(False)
+            self.show_legend_chk.setChecked(False)
 
     def handle_title_text_changed(self, new_text):
         self.chart.setPlotTitle(new_text)
@@ -851,7 +859,8 @@ class PyDMChartingDisplay(Display):
     def handle_update_datetime_timer_timeout(self):
         current_label = self.chart.getBottomAxisLabel()
         current_label = current_label[:current_label.find("Current Time: ")]
-        self.chart.setLabel("bottom", text=current_label + "Current Time: " + self.get_current_datetime())
+        self.chart.setLabel("bottom", text=current_label + "Current Time: " +
+                                           PyDMChartingDisplay.get_current_datetime())
 
     def update_curve_data(self, curve):
         """
@@ -890,7 +899,8 @@ class PyDMChartingDisplay(Display):
         self.cross_hair_coord_lbl.clear()
         self.cross_hair_coord_lbl.setText("x = {0:.3f}, y = {1:.3f}".format(x, y))
 
-    def get_current_datetime(self):
+    @staticmethod
+    def get_current_datetime():
         current_date = datetime.datetime.now().strftime("%b %d, %Y")
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         current_datetime = current_time + ' (' + current_date + ')'
