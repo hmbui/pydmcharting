@@ -16,9 +16,9 @@ from pydmcharting_logging import logging
 logger = logging.getLogger(__name__)
 
 from qtpy.QtCore import Qt, QEvent, Slot, QSize, QTimer
-from qtpy.QtWidgets import QApplication, QWidget, QCheckBox, QHBoxLayout, QVBoxLayout, QLabel, QSplitter, QComboBox,\
-    QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, QColorDialog, QGroupBox, QRadioButton, QMessageBox,\
-    QFileDialog, QScrollArea, QFrame, QSizePolicy, QLayout
+from qtpy.QtWidgets import QApplication, QWidget, QCheckBox, QHBoxLayout, QVBoxLayout, QFormLayout, QLabel, QSplitter,\
+    QComboBox, QLineEdit, QPushButton, QSlider, QSpinBox, QTabWidget, QColorDialog, QGroupBox, QRadioButton,\
+    QMessageBox, QFileDialog, QScrollArea, QFrame, QSizePolicy, QLayout
 from qtpy.QtGui import QColor, QPalette
 
 from displays.curve_settings_display import CurveSettingsDisplay
@@ -26,7 +26,6 @@ from displays.axis_settings_display import AxisSettingsDisplay
 from displays.chart_data_export_display import ChartDataExportDisplay
 from utilities.utils import random_color, display_message_box
 from data_io.settings_importer import ASYNC_DATA_SAMPLING, SYNC_DATA_SAMPLING
-
 
 MINIMUM_BUFFER_SIZE = 1200
 MAXIMUM_BUFER_SIZE = 65535
@@ -45,6 +44,7 @@ DEFAULT_CHART_AXIS_COLOR = QColor("white")
 
 MAX_DISPLAY_PV_NAME_LENGTH = 40
 
+X_AXIS_LABEL_SEPARATOR = " -- "
 IMPORT_FILE_FORMAT = "json"
 
 
@@ -217,6 +217,8 @@ class PyDMChartingDisplay(Display):
         self.show_legend_chk.setChecked(self.chart.showLegend)
         self.show_legend_chk.clicked.connect(self.handle_show_legend_checkbox_clicked)
 
+        self.graph_background_color_layout = QFormLayout()
+
         self.background_color_lbl = QLabel("Graph Background Color ")
         self.background_color_btn = QPushButton()
         self.background_color_btn.setStyleSheet("background-color: " + self.chart.getBackgroundColor().name())
@@ -264,7 +266,7 @@ class PyDMChartingDisplay(Display):
         self.curve_checkbox_panel = QWidget()
 
         self.graph_drawing_settings_grpbx = QGroupBox()
-        self.graph_drawing_settings_grpbx.setFixedHeight(300)
+        self.graph_drawing_settings_grpbx.setFixedHeight(270)
 
         self.axis_settings_grpbx = QGroupBox()
         self.axis_settings_grpbx.setFixedHeight(180)
@@ -286,7 +288,7 @@ class PyDMChartingDisplay(Display):
         """
         The minimum recommended size of the main window.
         """
-        return QSize(1490, 900)
+        return QSize(1490, 800)
 
     def ui_filepath(self):
         """
@@ -395,8 +397,9 @@ class PyDMChartingDisplay(Display):
         self.chart_limit_time_span_activate_btn.clicked.connect(self.handle_chart_limit_time_span_activate_btn_clicked)
         self.chart_limit_time_span_activate_btn.installEventFilter(self)
 
-        self.graph_drawing_settings_layout.addWidget(self.background_color_lbl)
-        self.graph_drawing_settings_layout.addWidget(self.background_color_btn)
+        self.graph_background_color_layout.addRow(self.background_color_lbl, self.background_color_btn)
+
+        self.graph_drawing_settings_layout.addLayout(self.graph_background_color_layout)
         self.graph_drawing_settings_layout.addWidget(self.chart_redraw_rate_lbl)
         self.graph_drawing_settings_layout.addWidget(self.chart_redraw_rate_spin)
         self.graph_drawing_settings_layout.addWidget(self.chart_data_sampling_rate_lbl)
@@ -765,6 +768,7 @@ class PyDMChartingDisplay(Display):
                 self.chart_limit_time_span_chk.setChecked(False)
                 self.chart_limit_time_span_chk.clicked.emit(False)
                 self.chart_limit_time_span_chk.hide()
+                self.graph_drawing_settings_grpbx.setFixedHeight(180)
 
                 self.chart.setUpdatesAsynchronously(False)
             elif radio_btn.text() == "Asynchronous":
@@ -773,6 +777,7 @@ class PyDMChartingDisplay(Display):
                 self.chart_data_sampling_rate_lbl.show()
                 self.chart_data_async_sampling_rate_spin.show()
                 self.chart_limit_time_span_chk.show()
+                self.graph_drawing_settings_grpbx.setFixedHeight(270)
 
                 self.chart.setUpdatesAsynchronously(True)
         self.app.establish_widget_connections(self)
@@ -858,9 +863,13 @@ class PyDMChartingDisplay(Display):
 
     def handle_update_datetime_timer_timeout(self):
         current_label = self.chart.getBottomAxisLabel()
-        current_label = current_label[:current_label.find("Current Time: ")]
-        self.chart.setLabel("bottom", text=current_label + "Current Time: " +
-                                           PyDMChartingDisplay.get_current_datetime())
+        new_label = "Current Time: " + PyDMChartingDisplay.get_current_datetime()
+
+        if X_AXIS_LABEL_SEPARATOR in current_label:
+            current_label = current_label[current_label.find(X_AXIS_LABEL_SEPARATOR) + len(X_AXIS_LABEL_SEPARATOR):]
+            new_label += X_AXIS_LABEL_SEPARATOR + current_label
+
+        self.chart.setLabel("bottom", text=new_label)
 
     def update_curve_data(self, curve):
         """

@@ -28,13 +28,15 @@ class SettingsImporter:
 
             self.main_display.chart_title_line_edt.textChanged.emit(chart_settings["title"])
 
-            chart.setLabel("bottom", text=chart_settings["x_axis_title"])
+            chart.setLabel("bottom", text=chart_settings["x_axis_label"])
+            chart.labels["bottom"] = chart_settings["x_axis_label"]
+
             chart.setLabel("bottom", unit=chart_settings["x_axis_unit"])
 
-            chart.setLabel("left", text=chart_settings["left_y_axis_title"])
+            chart.setLabel("left", text=chart_settings["left_y_axis_label"])
             chart.setLabel("left", unit=chart_settings["left_y_axis_unit"])
 
-            chart.setLabel("right", text=chart_settings["right_y_axis_title"])
+            chart.setLabel("right", text=chart_settings["right_y_axis_label"])
             chart.setLabel("right", unit=chart_settings["right_y_axis_unit"])
 
             self.main_display.chart_redraw_rate_spin.setValue(chart_settings["redraw_rate"])
@@ -93,3 +95,5 @@ class SettingsImporter:
 
             self.main_display.grid_opacity_slr.valueChanged.emit(chart_settings["grid_alpha"])
             self.main_display.grid_opacity_slr.setValue(chart_settings["grid_alpha"])
+
+            self.main_display.app.establish_widget_connections(self.main_display)

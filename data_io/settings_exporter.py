@@ -39,13 +39,15 @@ class SettingsExporter:
 
             chart_settings["title"] = chart.getPlotTitle()
 
-            chart_settings["x_axis_title"] = chart.labels["bottom"]
+            x_axis_label = chart.labels["bottom"]
+            x_axis_label = x_axis_label[x_axis_label.find(" -- ") + len(" -- "):]
+            chart_settings["x_axis_label"] = x_axis_label
             chart_settings["x_axis_unit"] = chart.units["bottom"]
 
-            chart_settings["left_y_axis_title"] = chart.labels["left"]
+            chart_settings["left_y_axis_label"] = chart.labels["left"]
             chart_settings["left_y_axis_unit"] = chart.units["left"]
 
-            chart_settings["right_y_axis_title"] = chart.labels["right"]
+            chart_settings["right_y_axis_label"] = chart.labels["right"]
             chart_settings["right_y_axis_unit"] = chart.units["right"]
 
             chart_settings["redraw_rate"] = chart.maxRedrawRate
