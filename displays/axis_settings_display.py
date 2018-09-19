@@ -16,7 +16,7 @@ class AxisSettingsDisplay(Display):
         self.chart = self.main_display.chart
         self.app = self.main_display.app
 
-        self.x_axis_lbl = QLabel(text="x-axis Label")
+        self.x_axis_lbl = QLabel("x-axis Label")
         self.x_axis_label_line_edt = QLineEdit()
         current_x_label = self.chart.labels["bottom"]
         if current_x_label:
@@ -24,22 +24,25 @@ class AxisSettingsDisplay(Display):
             self.x_axis_label_line_edt.setText(current_x_label)
         self.x_axis_label_line_edt.textChanged.connect(partial(self.handle_axis_label_change, "bottom"))
 
-        self.x_axis_unit_lbl = QLabel(text="x-axis Unit")
+        self.x_axis_unit_lbl = QLabel("x-axis Unit")
         self.x_axis_unit_edt = QLineEdit()
         self.x_axis_unit_edt.setText(self.chart.units["bottom"])
         self.x_axis_unit_edt.textChanged.connect(partial(self.handle_axis_label_change, "bottom", is_unit=True))
 
-        self.y_axis_lbl = QLabel(text="y-axis Label")
+        self.y_axis_lbl = QLabel("y-axis Label")
         self.y_axis_label_line_edt = QLineEdit()
         self.y_axis_label_line_edt.setText(self.chart.labels["left"])
         self.y_axis_label_line_edt.textChanged.connect(partial(self.handle_axis_label_change, "left"))
 
-        self.y_axis_unit_lbl = QLabel(text="y-axis Unit")
+        self.y_axis_unit_lbl = QLabel("y-axis Unit")
         self.y_axis_unit_edt = QLineEdit()
         self.y_axis_unit_edt.setText(self.chart.units["left"])
         self.y_axis_unit_edt.textChanged.connect(partial(self.handle_axis_label_change, "left", is_unit=True))
 
-        self.display_right_y_axis_chk = QCheckBox(text="Display the right y-axis")
+        self.right_y_axis_label_line_edt = QLineEdit()
+        self.right_y_axis_lbl = QLabel("Right y-axis Label")
+
+        self.display_right_y_axis_chk = QCheckBox("Display the right y-axis")
         self.display_right_y_axis_chk.setChecked(self.chart.getShowRightAxis())
         self.display_right_y_axis_chk.clicked.connect(self.handle_right_y_axis_checkbox_changed)
         self.display_right_y_axis_chk.setChecked(self.chart.getShowRightAxis())
@@ -87,8 +90,6 @@ class AxisSettingsDisplay(Display):
         self.main_layout.removeRow(self.main_layout.rowCount() - 1)
 
         if is_checked:
-            self.chart.showAxis("right")
-
             right_label = self.chart.labels["right"]
             if not right_label:
                 right_label = self.y_axis_label_line_edt.text()
@@ -96,8 +97,6 @@ class AxisSettingsDisplay(Display):
             if not right_unit:
                 right_unit = self.y_axis_unit_edt.text()
 
-            self.right_y_axis_lbl = QLabel(text="Right y-axis Label")
-            self.right_y_axis_label_line_edt = QLineEdit()
             self.right_y_axis_label_line_edt.textChanged.connect(partial(self.handle_axis_label_change, "right"))
 
             self.right_y_axis_unit_lbl = QLabel(text="Right y-axis Unit")
