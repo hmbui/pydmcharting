@@ -1,5 +1,5 @@
 # REPRO MOVED TO SLAC LAB
-The TimeChart (formerly PyDMCharting) project is now a part of the SLAC Lab home. It will be maintained and open for contributions at [the new TimeChart repro](https://github.com/slaclab/timechart, "SLAC Lab TimeChart"). The rest of the information here is saved as an archive.
+The TimeChart (formerly PyDMCharting) project is now a part of the SLAC Lab home. It will be maintained and open for contributions at [the new TimeChart repro](https://github.com/slaclab/timechart "SLAC Lab TimeChart"). The rest of the information here is saved as an archive.
 
 =====
 
