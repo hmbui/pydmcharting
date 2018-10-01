@@ -1,3 +1,8 @@
+# REPRO MOVED TO SLAC LAB
+The TimeChart (formerly PyDMCharting) project is now a part of the SLAC Lab home. It will be maintained and open for contributions at [the new TimeChart repro](https://github.com/slaclab/timechart, "SLAC Lab TimeChart"). The rest of the information here is saved as an archive.
+
+=====
+
 # PyDMCharting: Python Display Manager Charting Tool
 PyDMCharting is a Python Qt-based graphing application for control systems. It is intended to be the modern, feature-by-feature matching alternative to the Motif [EPICS Strip Tool](https://epics.anl.gov/extensions/StripTool/ "EPICS Strip Tool") application.
 
